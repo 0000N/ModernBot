@@ -2,6 +2,8 @@ class AutoGratis extends ModernUtil {
     constructor(c, s) {
         super(c, s);
 
+        this.onlyActiveTown = this.storage.load('autogratis_only_active_town', false);
+
         if (this.storage.load('enable_autogratis', false)) this.toggle();
     }
 
@@ -26,7 +28,13 @@ class AutoGratis extends ModernUtil {
                 <div class="right"></div>
                 <div class="caption js-caption">Gratis<div class="effect js-effect"></div></div>
             </div> button (try every 2.5 seconds)
-            </div>    
+            </div>
+            <div style="padding: 0 5px 8px; font-size: 11px; font-weight: 500;">
+                <label style="cursor: pointer;">
+                    <input type="checkbox" ${this.onlyActiveTown ? 'checked' : ''} onchange="window.modernBot.autoGratis.setOnlyActiveTown(this.checked)" />
+                    Only fire on the actively-viewed town (legacy behaviour)
+                </label>
+            </div>
         </div>
         `;
     };
@@ -47,18 +55,44 @@ class AutoGratis extends ModernUtil {
         this.storage.save('enable_autogratis', !!this.autogratis);
     };
 
-    /* Main loop for the autogratis bot */
+    /* Persist the active-town-only toggle and reflect it in subsequent ticks. */
+    setOnlyActiveTown = (value) => {
+        this.onlyActiveTown = !!value;
+        this.storage.save('autogratis_only_active_town', this.onlyActiveTown);
+    };
+
+    /* Inspect a single town's first build order and fire callGratis when the
+       order finishes within the 5-minute window. Returns true on a fire so
+       the caller can short-circuit the sweep. */
+    tryTown = (town, now) => {
+        if (!town || typeof town.buildingOrders !== 'function') return false;
+        const orders = town.buildingOrders();
+        if (!orders || !orders.models || orders.models.length === 0) return false;
+        const order = orders.models[0];
+        const completedAt = order.attributes.to_be_completed_at;
+        if (!completedAt) return false;
+        const remaining = completedAt - now;
+        if (remaining > 0 && remaining < 300) {
+            this.callGratis(town.id, order.id);
+            return true;
+        }
+        return false;
+    };
+
+    /* Main loop. Default: sweep every town the player owns and fire on the
+       first eligible order. With `onlyActiveTown`: limit the sweep to the
+       town currently focused via getCurrentTown — same scope as the
+       pre-PR-#75 behaviour, opt-in for users who prefer that cadence. */
     main = () => {
-        const el = uw.$('.type_building_queue.type_free').not('.disabled').not('#dummy_free');
-        if (el.length) {
-            el.click();
-            const town = uw.ITowns.getCurrentTown();
-            for (let model of town.buildingOrders().models) {
-                if (model.attributes.building_time < 300) {
-                    this.callGratis(town.id, model.id);
-                    return;
-                }
-            }
+        const now = Math.floor(Date.now() / 1000);
+
+        if (this.onlyActiveTown) {
+            this.tryTown(uw.ITowns.getCurrentTown(), now);
+            return;
+        }
+
+        for (const town_id in uw.ITowns.towns) {
+            if (this.tryTown(uw.ITowns.towns[town_id], now)) return;
         }
     };
 

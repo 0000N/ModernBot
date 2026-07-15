@@ -349,7 +349,7 @@ class AutoTrain extends ModernUtil {
         let w_max = resources.storage / (wood * discount);
         let s_max = resources.storage / (stone * discount);
         let i_max = resources.storage / (iron * discount);
-        let max = parseInt(Math.min(w_max, s_max, i_max) * 0.85); // 0.8 it's the full percentual -> 80%
+        let max = parseInt(Math.min(w_max, s_max, i_max) * this.percentual);
         max = max > duable_with_pop ? duable_with_pop : max;
 
         if (max > count) {

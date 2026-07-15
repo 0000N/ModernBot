@@ -176,8 +176,7 @@ class AutoFarm extends ModernUtil {
     generateList = () => {
         const islands_list = new Set();
         const polis_list = [];
-        let minResource = 0;
-        let min_percent = 0;
+        const currentTownId = uw.ITowns.getCurrentTown().id;
 
         const { models: towns } = uw.MM.getOnlyCollectionByName('Town');
 
@@ -185,14 +184,21 @@ class AutoFarm extends ModernUtil {
             const { on_small_island, island_id, id } = town.attributes;
             if (on_small_island || islands_list.has(island_id)) continue;
 
+            islands_list.add(island_id);
+
             // Check the min percent for each town
             const { wood, stone, iron, storage } = uw.ITowns.getTown(id).resources();
-            minResource = Math.min(wood, stone, iron);
-            min_percent = minResource / storage;
+            const minResource = Math.min(wood, stone, iron);
+            const min_percent = minResource / storage;
 
-            islands_list.add(island_id);
             if (min_percent >= this.percent) continue;
-            polis_list.push(town.id);
+
+            // Prefer the active city on multi-city islands
+            if (id === currentTownId) {
+                polis_list.unshift(id);
+            } else {
+                polis_list.push(id);
+            }
         }
 
         return polis_list;

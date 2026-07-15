@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         ModernBot
-// @version      1.20.0
+// @version      1.20.1
 // @description  A modern grepolis bot
 // @match        http://*.grepolis.com/game/*
 // @match        https://*.grepolis.com/game/*
@@ -762,8 +762,7 @@ class AutoFarm extends ModernUtil {
     generateList = () => {
         const islands_list = new Set();
         const polis_list = [];
-        let minResource = 0;
-        let min_percent = 0;
+        const currentTownId = uw.ITowns.getCurrentTown().id;
 
         const { models: towns } = uw.MM.getOnlyCollectionByName('Town');
 
@@ -771,14 +770,21 @@ class AutoFarm extends ModernUtil {
             const { on_small_island, island_id, id } = town.attributes;
             if (on_small_island || islands_list.has(island_id)) continue;
 
+            islands_list.add(island_id);
+
             // Check the min percent for each town
             const { wood, stone, iron, storage } = uw.ITowns.getTown(id).resources();
-            minResource = Math.min(wood, stone, iron);
-            min_percent = minResource / storage;
+            const minResource = Math.min(wood, stone, iron);
+            const min_percent = minResource / storage;
 
-            islands_list.add(island_id);
             if (min_percent >= this.percent) continue;
-            polis_list.push(town.id);
+
+            // Prefer the active city on multi-city islands
+            if (id === currentTownId) {
+                polis_list.unshift(id);
+            } else {
+                polis_list.push(id);
+            }
         }
 
         return polis_list;
@@ -1457,6 +1463,7 @@ class AutoRuralTrade extends ModernUtil {
 
 			for (const relation of player_relation_models) {
 				if (farmtown.attributes.id != relation.attributes.farm_town_id) continue;
+				if (relation.attributes.relation_status !== 1) continue;
 				if (relation.attributes.current_trade_ratio < this.min_rural_ratio * 0.25) continue;
 				if (town.getAvailableTradeCapacity() < 3000) continue;
 				this.tradeRuralPost(relation.attributes.farm_town_id, relation.attributes.id, town.getAvailableTradeCapacity(), town.id);
@@ -2701,7 +2708,7 @@ class AutoTrain extends ModernUtil {
         let w_max = resources.storage / (wood * discount);
         let s_max = resources.storage / (stone * discount);
         let i_max = resources.storage / (iron * discount);
-        let max = parseInt(Math.min(w_max, s_max, i_max) * 0.85); // 0.8 it's the full percentual -> 80%
+        let max = parseInt(Math.min(w_max, s_max, i_max) * this.percentual);
         max = max > duable_with_pop ? duable_with_pop : max;
 
         if (max > count) {

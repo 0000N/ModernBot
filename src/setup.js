@@ -28,6 +28,7 @@ class ModernBot {
         this.autoHide = new AutoHide(this.console, this.storage);
         this.antiRage = new AntiRage(this.console, this.storage);
         this.autoTrade = new AutoTrade(this.console, this.storage);
+        this.autoUnitBuilder = new AutoUnitBuilder(this.console, this.storage);
 
         this.settingsFactory = new createGrepoWindow({
             id: 'MODERN_BOT',
@@ -58,6 +59,11 @@ class ModernBot {
                     title: 'Mix',
                     id: 'mix',
                     render: this.settingsMix,
+                },
+                {
+                    title: 'Units',
+                    id: 'units',
+                    render: this.settingsUnits,
                 },
                 {
                     title: 'Console',
@@ -92,6 +98,10 @@ class ModernBot {
         html += this.autoParty.settings();
         html += this.autoHide.settings();
         return html;
+    };
+
+    settingsUnits = () => {
+        return this.autoUnitBuilder.settings();
     };
 
     settingsTrain = () => {

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         ModernBot
 // @version      1.22.0
-// @description  Grepolis Bot 2026 - Fork 0000N
+// @description  Bot Grepolis 2026 - Fork 0000N
 // @match        http://*.grepolis.com/game/*
 // @match        https://*.grepolis.com/game/*
 // @updateURL    https://github.com/0000N/ModernBot/raw/main/dist/merged.user.js
@@ -3622,25 +3622,25 @@ class AutoUnitBuilder extends ModernUtil {
     renderTargets = (tpl, bld, res, town) => {
         let h = '';
         if (tpl.buildings) {
-            h += '<div style="margin-bottom:4px"><b>Buildings:</b></div>';
+            h += '<b>Buildings:</b> ';
             Object.entries(tpl.buildings).forEach(([b, lvl]) => {
                 const cur = bld[b] || 0;
                 const done = cur >= lvl;
-                h += `<span style="margin-right:8px;font-size:11px;color:${done ? 'white' : 'orange'}">${b}: ${cur}h${lvl}</span>`;
+                h += `<span style="margin-right:6px">${b} <b>${cur}</b>/${lvl}${done ? ' ✓' : ''}</span>`;
             });
         }
         if (tpl.academy) {
-            h += '<div style="margin:4px 0"><b>Academy:</b></div>';
+            h += '<br><b>Academy:</b> ';
             tpl.academy.forEach(tech => {
                 const done = res[tech];
-                h += `<span style="margin-right:8px;font-size:11px;color:${done ? 'white' : 'orange'}">${tech}</span>`;
+                h += `<span style="margin-right:6px">${tech}${done ? ' ✓' : ''}</span>`;
             });
         }
-        h += '<div style="margin:4px 0"><b>Units:</b></div>';
+        h += '<br><b>Units:</b> ';
         Object.entries(tpl.units).forEach(([unit, target]) => {
             const owned = this.getOwnedCount(town, unit);
             const done = owned >= target;
-            h += `<span style="margin-right:8px;font-size:11px;color:${done ? 'white' : 'orange'}">${unit}: ${owned}h${target}</span>`;
+            h += `<span style="margin-right:6px">${unit} <b>${owned}</b>/${target}${done ? ' ✓' : ''}</span>`;
         });
         return h;
     };

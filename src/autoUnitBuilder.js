@@ -79,13 +79,13 @@ class AutoUnitBuilder extends ModernUtil {
         let html = '<div style="display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px;">';
         Object.entries(this.TEMPLATES).forEach(([id, tpl]) => {
             const disabled = id === currentTemplateId ? ' disabled' : '';
-            html += `<div style="cursor: pointer" class="button_new${disabled}" onclick="window.modernBot.autoUnitBuilder.selectTemplate(${townId}, '${id}')">
+            html += `<div style="cursor: pointer" class="button_new${disabled}" onclick="event.stopPropagation();window.modernBot.autoUnitBuilder.selectTemplate(${townId}, '${id}')">
                 <div class="left"></div>
                 <div class="right"></div>
                 <div class="caption js-caption"> ${tpl.label} <div class="effect js-effect"></div></div>
             </div>`;
         });
-        html += `<div style="cursor: pointer" class="button_new" onclick="window.modernBot.autoUnitBuilder.clearTemplate(${townId})">
+        html += `<div style="cursor: pointer" class="button_new" onclick="event.stopPropagation();window.modernBot.autoUnitBuilder.clearTemplate(${townId})">
             <div class="left"></div>
             <div class="right"></div>
             <div class="caption js-caption"> Clear <div class="effect js-effect"></div></div>

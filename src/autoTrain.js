@@ -363,8 +363,9 @@ class AutoTrain extends ModernUtil {
         max = max > duable_with_pop ? duable_with_pop : max;
 
         if (count <= 0) return 0;
-        let affordable = Math.min(count, current, max, duable_with_pop, this.MAX_BATCH);
-        return affordable >= 1 ? affordable : -1;
+        let affordable = Math.min(count, current, max, duable_with_pop);
+        if (affordable < this.MAX_BATCH) return -1;
+        return Math.min(affordable, this.MAX_BATCH);
     };
 
     /* Check the given town, for ground or land */

@@ -1,30 +1,28 @@
 class AutoUnitBuilder extends ModernUtil {
-    GROUND_ORDER = ['catapult', 'sword', 'archer', 'hoplite', 'slinger', 'rider', 'chariot'];
     NAVAL_ORDER = ['small_transporter', 'bireme', 'trireme', 'attack_ship', 'big_transporter', 'demolition_ship', 'colonize_ship'];
     MAX_ORDERS = 6;
     MAX_BATCH = 50;
 
     TEMPLATES = {
-        bireme_city: { label: 'Bireme City', units: { bireme: 250 }, academy: ['bireme'] },
-        fire_ship_city: { label: 'Fire Ship City', units: { demolition_ship: 200 }, academy: ['demolition_ship'] },
-        slinger_city: { label: 'Slinger City', units: { slinger: 3000, small_transporter: 32 }, academy: ['slinger'] },
-        light_ship_city: { label: 'Light Ship City', units: { attack_ship: 250 }, academy: ['attack_ship'] },
-        defense_city: { label: 'Defense City', units: { sword: 600, archer: 600, hoplite: 600, bireme: 100 }, academy: ['archer', 'bireme'] },
-        conquest_support: { label: 'Conquest / Support', units: { colonize_ship: 1, big_transporter: 20, bireme: 100 }, academy: ['colonize_ship', 'big_transporter', 'bireme'] },
-        farming_city: { label: 'Farming / Resource City', units: { sword: 250, archer: 250 }, academy: ['archer'] },
+        bireme_city: { label: 'Bireme City', units: { bireme: 250 }, academy: ['bireme'], buildings: { docks: 1 } },
+        fire_ship_city: { label: 'Fire Ship City', units: { demolition_ship: 200 }, academy: ['demolition_ship'], buildings: { docks: 1 } },
+        slinger_city: { label: 'Slinger City', units: { slinger: 3000, small_transporter: 32 }, academy: ['slinger'], buildings: { barracks: 1, docks: 1 } },
+        light_ship_city: { label: 'Light Ship City', units: { attack_ship: 250 }, academy: ['attack_ship'], buildings: { docks: 1 } },
+        defense_city: { label: 'Defense City', units: { sword: 600, archer: 600, hoplite: 600, bireme: 100 }, academy: ['archer', 'bireme'], buildings: { barracks: 1, docks: 1 } },
+        conquest_support: { label: 'Conquest / Support', units: { colonize_ship: 1, big_transporter: 20, bireme: 100 }, academy: ['colonize_ship', 'big_transporter', 'bireme'], buildings: { docks: 10, barracks: 1 } },
+        farming_city: { label: 'Farming / Resource City', units: { sword: 250, archer: 250 }, academy: ['archer'], buildings: { barracks: 1 } },
     };
 
     constructor(c, s) {
         super(c, s);
         this.townTemplates = this.storage.load('ub_templates', {});
         this.active = this.storage.load('ub_active', false);
-        this.simulateCaptcha = false;
         this.captchaActive = false;
 
         if (this.active) this.interval = setInterval(this.main.bind(this), 5000);
 
         setInterval(() => {
-            if (this.simulateCaptcha || $('.botcheck').length || $('#recaptcha_window').length) {
+            if ($('.botcheck').length || $('#recaptcha_window').length) {
                 if (!this.captchaActive) {
                     this.console.log('Captcha active, unit builder paused');
                     clearInterval(this.interval);
@@ -96,12 +94,33 @@ class AutoUnitBuilder extends ModernUtil {
 
     renderTemplatePreview = (town, currentTemplate, townId) => {
         if (!currentTemplate) return '';
+        const buildings = town.getBuildings?.().attributes || {};
+        const researches = town.getResearches?.().attributes || {};
         let html = '<div style="margin-top: 8px; font-size: 11px;">';
+
         Object.entries(currentTemplate.units).forEach(([unit, target]) => {
             const owned = this.getOwnedCount(town, unit);
             const remaining = Math.max(0, target - owned);
-            html += `<div>${unit}: ${owned}/${target} (${remaining})</div>`;
+            html += `<div>${unit}: ${owned}/${target} (${remaining} restant)</div>`;
         });
+
+        if (currentTemplate.buildings) {
+            html += '<div style="margin-top: 4px; font-weight: bold;">Bâtiments requis :</div>';
+            Object.entries(currentTemplate.buildings).forEach(([bld, lvl]) => {
+                const current = buildings[bld] || 0;
+                const ok = current >= lvl;
+                html += `<div style="color: ${ok ? '#8f8' : '#f88'}">${bld}: ${current}/${lvl} ${ok ? '✅' : '⛏️'}</div>`;
+            });
+        }
+
+        if (currentTemplate.academy) {
+            html += '<div style="margin-top: 4px; font-weight: bold;">Recherches :</div>';
+            currentTemplate.academy.forEach(tech => {
+                const ok = researches[tech];
+                html += `<div style="color: ${ok ? '#8f8' : '#f88'}">${tech} ${ok ? '✅' : '⏳'}</div>`;
+            });
+        }
+
         html += '</div>';
         return html;
     };
@@ -109,6 +128,15 @@ class AutoUnitBuilder extends ModernUtil {
     toggle = () => {
         this.active = !this.active;
         this.storage.save('ub_active', this.active);
+
+        if (this.active && uw.modernBot?.autoTrain) {
+            uw.modernBot.autoTrain.city_troops = {};
+            uw.modernBot.autoTrain.storage.save('troops', {});
+            clearInterval(uw.modernBot.autoTrain.interval);
+            uw.modernBot.autoTrain.interval = null;
+            this.console.log('Unit Builder activé → AutoTrain désactivé');
+        }
+
         if (this.active && !this.interval) {
             this.interval = setInterval(this.main.bind(this), 5000);
         } else if (!this.active && this.interval) {
@@ -143,16 +171,46 @@ class AutoUnitBuilder extends ModernUtil {
             const template = this.TEMPLATES[templateId];
             if (!template) continue;
 
-            // Research required academy technologies first
+            // 1. Check and upgrade buildings
+            if (template.buildings) {
+                const buildings = town.getBuildings?.().attributes || {};
+                const queueCount = town.buildingOrders?.()?.length || 0;
+                const maxQueue = uw.GameDataPremium?.isAdvisorActivated('curator') ? 7 : 2;
+                if (queueCount < maxQueue) {
+                    for (const [bld, minLvl] of Object.entries(template.buildings)) {
+                        const current = buildings[bld] || 0;
+                        if (current >= minLvl) continue;
+
+                        const resources = town.resources();
+                        const buildData = uw.MM?.getModels?.()?.BuildingBuildData?.[townId];
+                        const cost = buildData?.attributes?.building_data?.[bld]?.resources_for;
+                        if (cost) {
+                            const m = 20;
+                            if (resources.wood < cost.wood + m || resources.stone < cost.stone + m || resources.iron < cost.iron + m) {
+                                this.console.log(`${town.getName()}: pas assez de ressources pour ${bld} ${current} → ${minLvl}`);
+                                continue;
+                            }
+                        }
+
+                        const data = {
+                            model_url: 'BuildingOrder',
+                            action_name: 'buildUp',
+                            arguments: { building_id: bld },
+                            town_id: townId,
+                        };
+                        uw.gpAjax.ajaxPost('frontend_bridge', 'execute', data);
+                        this.console.log(`${town.getName()}: upgrade ${bld} ${current} → ${minLvl}`);
+                        await this.sleep(1500);
+                        return;
+                    }
+                }
+            }
+
+            // 2. Research required academy technologies
             if (template.academy) {
                 const researches = town.getResearches?.().attributes || {};
-                const currentBuildings = town.getBuildings?.().attributes || {};
-                const academyLevel = currentBuildings.academy || 0;
-
                 for (const tech of template.academy) {
                     if (researches[tech]) continue;
-                    if (academyLevel < 1) break;
-
                     this.console.log(`${town.getName()}: researching ${tech}`);
                     const researchData = {
                         model_url: 'BuildingAcademy',
@@ -166,17 +224,16 @@ class AutoUnitBuilder extends ModernUtil {
                 }
             }
 
+            // 3. Build units
             for (const [rawUnit, target] of Object.entries(template.units)) {
-                const unit = rawUnit;
-                const unitData = uw.GameData?.units?.[unit];
+                const unitData = uw.GameData?.units?.[rawUnit];
                 if (!unitData) continue;
 
-                const kind = this.NAVAL_ORDER.includes(unit) ? 'naval' : 'ground';
-                const collection = town.getUnitOrdersCollection?.();
-                const orderCount = collection?.where?.({ kind })?.length || 0;
+                const kind = this.NAVAL_ORDER.includes(rawUnit) ? 'naval' : 'ground';
+                const orderCount = town.getUnitOrdersCollection?.()?.where?.({ kind })?.length || 0;
                 if (orderCount >= this.MAX_ORDERS) continue;
 
-                const owned = this.getOwnedCount(town, unit);
+                const owned = this.getOwnedCount(town, rawUnit);
                 const remaining = Math.max(0, target - owned);
                 if (remaining <= 0) continue;
 
@@ -193,9 +250,9 @@ class AutoUnitBuilder extends ModernUtil {
 
                 if (amount <= 0) continue;
 
-                const data = { unit_id: unit, amount, town_id: townId };
+                const data = { unit_id: rawUnit, amount, town_id: townId };
                 uw.gpAjax.ajaxPost('building_barracks', 'build', data);
-                this.console.log(`${town.getName()}: training ${amount} ${unit}`);
+                this.console.log(`${town.getName()}: training ${amount} ${rawUnit}`);
                 await this.sleep(500);
                 return;
             }

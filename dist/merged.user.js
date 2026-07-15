@@ -3681,6 +3681,29 @@ class AutoUnitBuilder extends ModernUtil {
             const template = this.TEMPLATES[templateId];
             if (!template) continue;
 
+            // Research required academy technologies first
+            if (template.academy) {
+                const researches = town.getResearches?.().attributes || {};
+                const currentBuildings = town.getBuildings?.().attributes || {};
+                const academyLevel = currentBuildings.academy || 0;
+
+                for (const tech of template.academy) {
+                    if (researches[tech]) continue;
+                    if (academyLevel < 1) break;
+
+                    this.console.log(`${town.getName()}: researching ${tech}`);
+                    const researchData = {
+                        model_url: 'BuildingAcademy',
+                        action_name: 'research',
+                        arguments: { research_id: tech },
+                        town_id: townId,
+                    };
+                    uw.gpAjax.ajaxPost('frontend_bridge', 'execute', researchData);
+                    await this.sleep(1000);
+                    return;
+                }
+            }
+
             for (const [rawUnit, target] of Object.entries(template.units)) {
                 const unit = rawUnit;
                 const unitData = uw.GameData?.units?.[unit];

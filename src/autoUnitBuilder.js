@@ -4,48 +4,13 @@ class AutoUnitBuilder extends ModernUtil {
     MAX_BATCH = 50;
 
     TEMPLATES = {
-        bireme_city: {
-            label: 'Bireme City', icon: '⚓',
-            buildings: { main:30, storage:30, farm:40, docks:30, wall:20 },
-            academy: ['bireme'],
-            units: { bireme: 250 },
-        },
-        fire_ship_city: {
-            label: 'Fire Ship City', icon: '🔥',
-            buildings: { main:30, storage:30, farm:40, docks:30, wall:20 },
-            academy: ['demolition_ship'],
-            units: { demolition_ship: 200 },
-        },
-        slinger_city: {
-            label: 'Slinger City', icon: '🎯',
-            buildings: { main:30, storage:30, farm:40, barracks:30, wall:20 },
-            academy: ['slinger'],
-            units: { slinger: 3000, small_transporter: 32 },
-        },
-        light_ship_city: {
-            label: 'Light Ship City', icon: '🚀',
-            buildings: { main:30, storage:30, farm:40, docks:30, wall:20 },
-            academy: ['attack_ship'],
-            units: { attack_ship: 250 },
-        },
-        defense_city: {
-            label: 'Defense City', icon: '🛡️',
-            buildings: { main:30, storage:30, farm:40, barracks:30, wall:25, docks:10 },
-            academy: ['archer', 'bireme', 'hoplite'],
-            units: { sword: 600, archer: 600, hoplite: 600, bireme: 100 },
-        },
-        conquest_support: {
-            label: 'Conquest / Support', icon: '⚔️',
-            buildings: { main:30, storage:30, farm:40, temple:20, docks:20, wall:25 },
-            academy: ['colonize_ship', 'big_transporter', 'bireme', 'demolition_ship'],
-            units: { colonize_ship: 1, big_transporter: 20, bireme: 100, demolition_ship: 50 },
-        },
-        farming_city: {
-            label: 'Farming / Resource', icon: '🌾',
-            buildings: { main:20, storage:20, farm:30, barracks:10 },
-            academy: ['archer'],
-            units: { sword: 250, archer: 250 },
-        },
+        bireme_city:      { label: 'Bireme City',      buildings: { main:30, storage:30, farm:40, docks:30, wall:20 }, academy: ['bireme'], units: { bireme: 250 } },
+        fire_ship_city:   { label: 'Fire Ship City',   buildings: { main:30, storage:30, farm:40, docks:30, wall:20 }, academy: ['demolition_ship'], units: { demolition_ship: 200 } },
+        slinger_city:     { label: 'Slinger City',     buildings: { main:30, storage:30, farm:40, barracks:30, wall:20 }, academy: ['slinger'], units: { slinger: 3000, small_transporter: 32 } },
+        light_ship_city:  { label: 'Light Ship City',  buildings: { main:30, storage:30, farm:40, docks:30, wall:20 }, academy: ['attack_ship'], units: { attack_ship: 250 } },
+        defense_city:     { label: 'Defense City',     buildings: { main:30, storage:30, farm:40, barracks:30, wall:25, docks:10 }, academy: ['archer','bireme','hoplite'], units: { sword:600, archer:600, hoplite:600, bireme:100 } },
+        conquest_support: { label: 'Conquest',         buildings: { main:30, storage:30, farm:40, temple:20, docks:20, wall:25 }, academy: ['colonize_ship','big_transporter','bireme','demolition_ship'], units: { colonize_ship:1, big_transporter:20, bireme:100, demolition_ship:50 } },
+        farming_city:     { label: 'Farming',          buildings: { main:20, storage:20, farm:30, barracks:10 }, academy: ['archer'], units: { sword:250, archer:250 } },
     };
 
     constructor(c, s) {
@@ -74,10 +39,7 @@ class AutoUnitBuilder extends ModernUtil {
         const tpl = this.TEMPLATES[tplId];
         const bld = town.getBuildings?.().attributes || {};
         const res = town.getResearches?.().attributes || {};
-
-        let labelStyle = this.active ? 'brightness(100%) saturate(186%) hue-rotate(241deg)' : '';
-        let statusText = this.active ? (this.currentAction || 'ACTIVE') : 'STOPPED';
-        let statusColor = this.active ? '#1aff1a' : '#aaa';
+        const filter = this.active ? 'brightness(100%) saturate(186%) hue-rotate(241deg)' : '';
 
         return `
         <div class="game_border" style="margin-bottom:20px">
@@ -85,19 +47,64 @@ class AutoUnitBuilder extends ModernUtil {
             <div class="game_border_left"></div><div class="game_border_right"></div>
             <div class="game_border_corner corner1"></div><div class="game_border_corner corner2"></div>
             <div class="game_border_corner corner3"></div><div class="game_border_corner corner4"></div>
-            <div style="cursor:pointer;filter:${labelStyle}" class="game_header bold" onclick="window.modernBot.autoUnitBuilder.toggle()">
+            <div style="cursor: pointer; filter: ${filter}" class="game_header bold" onclick="window.modernBot.autoUnitBuilder.toggle()">
                 City Builder <span class="command_count"></span>
-                <span id="ub_status" style="float:right;margin-right:8px;font-size:10px;color:${statusColor}">${statusText}</span>
+                <span id="ub_status" style="float:right;margin-right:8px;font-size:10px;"></span>
             </div>
-            <div id="ub_content" style="padding:6px">
-                <div id="ub_town_info" style="margin-bottom:4px">
-                    <b>${town.getName()}</b> [${town.getPoints()} pts]
-                    ${tpl ? ' <span style="margin-left:4px">' + tpl.icon + ' ' + tpl.label + '</span>' : ' <span style="opacity:.5">no template</span>'}
-                </div>
-                <div id="ub_buttons" style="margin-bottom:6px">${this.renderButtons(townId, tplId)}</div>
-                <div id="ub_progress">${tpl ? this.renderProgress(tpl, bld, res, town) : '<div style="text-align:center;opacity:.5;padding:8px">Select a template</div>'}</div>
+            <div id="ub_town_header" style="padding:6px;font-weight:bold;">
+                ${town.getName()} [${town.getPoints()} pts]
+                ${tpl ? '<span class="command_count"> &raquo; ' + tpl.label + '</span>' : ''}
             </div>
+            <div id="ub_buttons" style="padding:0 6px 6px 6px;">${this.renderButtons(townId, tplId)}</div>
+            <div id="ub_targets" style="padding:0 6px 6px 6px;">${tpl ? this.renderTargets(tpl, bld, res, town) : ''}</div>
         </div>`;
+    };
+
+    renderButtons = (townId, current) => {
+        let h = '';
+        Object.entries(this.TEMPLATES).forEach(([id, tpl]) => {
+            const sel = id === current;
+            h += `<div style="cursor:pointer;float:left;margin:2px;" class="button_new${sel ? ' disabled' : ''}"
+                onclick="event.stopPropagation();window.modernBot.autoUnitBuilder.selectTemplate(${townId},'${id}')">
+                <div class="left"></div><div class="right"></div>
+                <div class="caption js-caption"> ${tpl.label} <div class="effect js-effect"></div></div>
+            </div>`;
+        });
+        if (current) {
+            h += `<div style="cursor:pointer;float:left;margin:2px;" class="button_new"
+                onclick="event.stopPropagation();window.modernBot.autoUnitBuilder.clearTemplate(${townId})">
+                <div class="left"></div><div class="right"></div>
+                <div class="caption js-caption"> Clear <div class="effect js-effect"></div></div>
+            </div>`;
+        }
+        h += '<div style="clear:both"></div>';
+        return h;
+    };
+
+    renderTargets = (tpl, bld, res, town) => {
+        let h = '';
+        if (tpl.buildings) {
+            h += '<div style="margin-bottom:4px"><b>Buildings:</b></div>';
+            Object.entries(tpl.buildings).forEach(([b, lvl]) => {
+                const cur = bld[b] || 0;
+                const done = cur >= lvl;
+                h += `<span style="margin-right:8px;font-size:11px;color:${done ? 'white' : 'orange'}">${b}: ${cur}h${lvl}</span>`;
+            });
+        }
+        if (tpl.academy) {
+            h += '<div style="margin:4px 0"><b>Academy:</b></div>';
+            tpl.academy.forEach(tech => {
+                const done = res[tech];
+                h += `<span style="margin-right:8px;font-size:11px;color:${done ? 'white' : 'orange'}">${tech}</span>`;
+            });
+        }
+        h += '<div style="margin:4px 0"><b>Units:</b></div>';
+        Object.entries(tpl.units).forEach(([unit, target]) => {
+            const owned = this.getOwnedCount(town, unit);
+            const done = owned >= target;
+            h += `<span style="margin-right:8px;font-size:11px;color:${done ? 'white' : 'orange'}">${unit}: ${owned}h${target}</span>`;
+        });
+        return h;
     };
 
     refreshUI = () => {
@@ -108,64 +115,11 @@ class AutoUnitBuilder extends ModernUtil {
         const tpl = this.TEMPLATES[tplId];
         const bld = town.getBuildings?.().attributes || {};
         const res = town.getResearches?.().attributes || {};
-        const sColor = this.active ? '#1aff1a' : '#aaa';
-        $('#ub_status').css('color', sColor).text(this.currentAction || (this.active ? 'ACTIVE' : 'STOPPED'));
-        $('#ub_town_info').html(`<b>${town.getName()}</b> [${town.getPoints()} pts]${tpl ? ' <span style="margin-left:4px">' + tpl.icon + ' ' + tpl.label + '</span>' : ' <span style="opacity:.5">no template</span>'}`);
+
+        $('#ub_status').text(this.currentAction || (this.active ? 'ACTIVE' : ''));
+        $('#ub_town_header').html(`${town.getName()} [${town.getPoints()} pts]${tpl ? '<span class="command_count"> &raquo; ' + tpl.label + '</span>' : ''}`);
         $('#ub_buttons').html(this.renderButtons(townId, tplId));
-        $('#ub_progress').html(tpl ? this.renderProgress(tpl, bld, res, town) : '<div style="text-align:center;opacity:.5;padding:8px">Select a template</div>');
-    };
-
-    renderButtons = (townId, current) => {
-        let h = '';
-        Object.entries(this.TEMPLATES).forEach(([id, tpl]) => {
-            const sel = id === current;
-            h += `<div style="cursor:pointer;display:inline-block;padding:3px 6px;border-radius:3px;font-size:11px;margin:2px;
-                ${sel ? 'background:#ffbb33;color:#000;font-weight:bold;' : 'background:rgba(255,255,255,.1);color:#ccc;'}"
-                onclick="event.stopPropagation();window.modernBot.autoUnitBuilder.selectTemplate(${townId},'${id}')">
-                ${tpl.icon} ${tpl.label}</div>`;
-        });
-        h += `<div style="cursor:pointer;display:inline-block;padding:3px 8px;border-radius:3px;font-size:11px;margin:2px;background:rgba(220,80,80,.3);color:#e88;"
-            onclick="event.stopPropagation();window.modernBot.autoUnitBuilder.clearTemplate(${townId})">✕ Clear</div>`;
-        return h;
-    };
-
-    renderProgress = (tpl, bld, res, town) => {
-        let h = '<div style="font-size:11px">';
-        if (tpl.buildings) {
-            h += '<div style="margin:4px 0 2px"><b>Buildings</b></div>';
-            Object.entries(tpl.buildings).forEach(([b, lvl]) => {
-                const cur = bld[b] || 0;
-                const pct = Math.min(100, Math.round(cur / lvl * 100));
-                const done = cur >= lvl;
-                const c = done ? '#4caf50' : '#ff9800';
-                h += `<div style="margin:1px 0"><span style="display:inline-block;width:70px">${b}</span>
-                    <span style="display:inline-block;width:90px;height:5px;background:#444;vertical-align:middle">
-                        <span style="display:block;width:${pct}%;height:100%;background:${c}"></span>
-                    </span>
-                    <span style="font-size:9px;color:${c};margin-left:2px">${cur}/${lvl}${done?' ✓':''}</span></div>`;
-            });
-        }
-        if (tpl.academy) {
-            h += '<div style="margin:4px 0 2px"><b>Academy</b></div>';
-            tpl.academy.forEach(tech => {
-                const done = res[tech];
-                h += `<div style="margin:1px 0;color:${done?'#4caf50':'#ff9800'};font-size:10px">${done?'✓':'⏳'} ${tech}</div>`;
-            });
-        }
-        h += '<div style="margin:4px 0 2px"><b>Units</b></div>';
-        Object.entries(tpl.units).forEach(([unit, target]) => {
-            const owned = this.getOwnedCount(town, unit);
-            const pct = Math.min(100, Math.round(owned / target * 100));
-            const done = owned >= target;
-            const c = done ? '#4caf50' : '#4fc3f7';
-            h += `<div style="margin:1px 0"><span style="display:inline-block;width:100px">${unit}</span>
-                <span style="display:inline-block;width:90px;height:5px;background:#444;vertical-align:middle">
-                    <span style="display:block;width:${pct}%;height:100%;background:${c}"></span>
-                </span>
-                <span style="font-size:9px;color:${c};margin-left:2px">${owned}/${target}${done?' ✓':''}</span></div>`;
-        });
-        h += '</div>';
-        return h;
+        $('#ub_targets').html(tpl ? this.renderTargets(tpl, bld, res, town) : '');
     };
 
     toggle = () => {
@@ -208,11 +162,10 @@ class AutoUnitBuilder extends ModernUtil {
             if (tpl.buildings && q < mq) {
                 for (const [b, lv] of Object.entries(tpl.buildings)) {
                     if ((bld[b] || 0) >= lv) continue;
-                    const r = t.resources();
                     const bd = uw.MM?.getModels?.()?.BuildingBuildData?.[cid]?.attributes?.building_data?.[b];
-                    if (!bd) continue;
+                    if (!bd?.resources_for) continue;
                     const cost = bd.resources_for;
-                    if (!cost) continue;
+                    const r = t.resources();
                     if (r.wood < cost.wood + 20 || r.stone < cost.stone + 20 || r.iron < cost.iron + 20) continue;
                     uw.gpAjax.ajaxPost('frontend_bridge', 'execute', { model_url: 'BuildingOrder', action_name: 'buildUp', arguments: { building_id: b }, town_id: cid });
                     this.currentAction = `Building: ${b}`; this.refreshUI();

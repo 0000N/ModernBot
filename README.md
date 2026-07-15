@@ -21,7 +21,30 @@ A fork of [Sau1707/ModernBot](https://github.com/Sau1707/ModernBot), maintained 
 
 ## Installation
 
-### <div align="center"> [Version 1.0 (src)](https://github.com/0000N/ModernBot/raw/main/dist/merged.user.js) </div>
+### 1. Install Tampermonkey
+
+If you don't have it yet: [Install Tampermonkey](https://www.tampermonkey.net/)
+
+### 2. Click to install ModernBot
+
+<p align="center">
+  <a href="https://raw.githubusercontent.com/0000N/ModernBot/main/dist/merged.user.js">
+    <img src="https://img.shields.io/badge/Install%20ModernBot-v1.20-brightgreen?style=for-the-badge&logo=tampermonkey" alt="Install ModernBot">
+  </a>
+</p>
+
+**Or copy this URL into your browser:**
+```
+https://raw.githubusercontent.com/0000N/ModernBot/main/dist/merged.user.js
+```
+
+Tampermonkey will automatically detect the script and ask you to install it.
+
+### 3. Done! ✅
+
+Log in to Grepolis and you'll see the ModernBot icon next to the gods area.
+
+---
 
 Version 2.0 Work in progress — [Track progress](https://github.com/0000N/ModernBot/issues)
 

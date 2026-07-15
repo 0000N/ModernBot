@@ -15,6 +15,7 @@ class ModernBot {
         this.loopActive = false;
 
         this.autoFarm = new AutoFarm();
+        this.autoUnitBuilder = new AutoUnitBuilder();
 
         new ModernMenu([
             {
@@ -22,11 +23,11 @@ class ModernBot {
                 id: 'farm',
                 render: () => this.autoFarm.render(),
             },
-            // { 
-            //     title: 'Build',
-            //     id: 'build',
-            //     render: () => { },
-            // }
+            {
+                title: 'Units',
+                id: 'unit_builder',
+                render: () => this.autoUnitBuilder.render(),
+            },
         ]);
 
 
@@ -69,6 +70,15 @@ class ModernBot {
             this.loopActive = false;
             return;
         };
+
+        // Check if unit builder has units to train / build
+        const hasUnitBuild = await this.autoUnitBuilder.execute();
+        if (hasUnitBuild) {
+            console.log("[ModernBot] unit builder executed");
+            this.lastAction = Date.now();
+            this.loopActive = false;
+            return;
+        }
 
         // TODO: Check for building upgrades
         // TODO: Check for research upgrades

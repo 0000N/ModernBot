@@ -1,0 +1,27 @@
+name: auto-reply
+
+on:
+  issues:
+    types: [opened]
+
+jobs:
+  reply:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - uses: actions/github-script@v4
+        with:
+          script: |
+            github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: 'Merci pour ton signalement.\n\nLe bot est gere via OpenCode (opencode.ai).\nTon issue sera analysee et corrigee.\n\nEn attendant : verifie que tu utilises la derniere version du script.'
+            });
+            github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              labels: ['en_attente']
+            });

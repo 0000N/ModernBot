@@ -1,17 +1,30 @@
-# ModernBot
-
+# ModernBot — Fork OpenCode
 
 ![screenshot](./img/screen.png)
 
 <br />
 
+Maintenu par [0000N](https://github.com/0000N) — Fork de [Sau1707/ModernBot](https://github.com/Sau1707/ModernBot).  
+**Le code est géré automatiquement via [OpenCode](https://opencode.ai) — agent IA dédié au développement et à la correction du bot.**
+
+<br />
+
 ## Installation
 
-### <div align="center"> [Version 1.0](https://github.com/Sau1707/ModernBot/raw/refs/heads/main/dist/merged.user.js) </div>
+### <div align="center"> [Version 1.0 (src)](https://github.com/0000N/ModernBot/raw/main/dist/merged.user.js) </div>
 
-Version 2.0 Work in progress
+Version 2.0 Work in progress — [Suivre l'avancement](https://github.com/0000N/ModernBot/issues)
 
-ModerLite Work in progress
+<br /> 
+
+## Signaler un problème
+
+**Les issues sont ouvertes sur ce fork** : [https://github.com/0000N/ModernBot/issues](https://github.com/0000N/ModernBot/issues)
+
+Quand tu crées une issue :
+- Une réponse automatique confirme la réception
+- Le code sera corrigé et proposé pour validation
+- Tu es notifié quand la correction est prête
 
 <br />
 

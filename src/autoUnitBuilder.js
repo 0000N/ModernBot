@@ -69,13 +69,15 @@ class AutoUnitBuilder extends ModernUtil {
         const town = uw.ITowns.getCurrentTown();
         if (!town) return '<p>Loading...</p>';
         this.lastTownId = town.id;
-
         const townId = town.id;
         const tplId = this.townTemplates[townId] || '';
         const tpl = this.TEMPLATES[tplId];
         const bld = town.getBuildings?.().attributes || {};
         const res = town.getResearches?.().attributes || {};
-        const statusColor = this.active ? '#1aff1a' : '#aaa';
+
+        let labelStyle = this.active ? 'brightness(100%) saturate(186%) hue-rotate(241deg)' : '';
+        let statusText = this.active ? (this.currentAction || 'ACTIVE') : 'STOPPED';
+        let statusColor = this.active ? '#1aff1a' : '#aaa';
 
         return `
         <div class="game_border" style="margin-bottom:20px">
@@ -83,18 +85,17 @@ class AutoUnitBuilder extends ModernUtil {
             <div class="game_border_left"></div><div class="game_border_right"></div>
             <div class="game_border_corner corner1"></div><div class="game_border_corner corner2"></div>
             <div class="game_border_corner corner3"></div><div class="game_border_corner corner4"></div>
-            <div style="cursor:pointer; filter:${this.active ? 'brightness(100%) saturate(186%) hue-rotate(241deg)' : ''}"
-                 class="game_header bold" onclick="window.modernBot.autoUnitBuilder.toggle()">
+            <div style="cursor:pointer;filter:${labelStyle}" class="game_header bold" onclick="window.modernBot.autoUnitBuilder.toggle()">
                 City Builder <span class="command_count"></span>
-                <span id="ub_status" style="float:right;margin-right:8px;font-size:11px;color:${statusColor}">${this.active ? 'ACTIVE' : 'STOPPED'}</span>
+                <span id="ub_status" style="float:right;margin-right:8px;font-size:10px;color:${statusColor}">${statusText}</span>
             </div>
-            <div id="ub_content" style="padding:5px">
-                <div id="ub_town_info" style="font-weight:bold;margin-bottom:5px">
-                    ${town.getName()} [${town.getPoints()} pts]
-                    ${tpl ? '<span style="margin-left:8px">' + tpl.icon + ' ' + tpl.label + '</span>' : '<span style="margin-left:8px;opacity:.5">no template</span>'}
+            <div id="ub_content" style="padding:6px">
+                <div id="ub_town_info" style="margin-bottom:4px">
+                    <b>${town.getName()}</b> [${town.getPoints()} pts]
+                    ${tpl ? ' <span style="margin-left:4px">' + tpl.icon + ' ' + tpl.label + '</span>' : ' <span style="opacity:.5">no template</span>'}
                 </div>
-                <div id="ub_buttons" style="margin-bottom:5px">${this.renderButtons(townId, tplId)}</div>
-                <div id="ub_progress">${tpl ? this.renderProgress(town, tpl, bld, res) : '<div style="text-align:center;opacity:.5;padding:10px">Select a template</div>'}</div>
+                <div id="ub_buttons" style="margin-bottom:6px">${this.renderButtons(townId, tplId)}</div>
+                <div id="ub_progress">${tpl ? this.renderProgress(tpl, bld, res, town) : '<div style="text-align:center;opacity:.5;padding:8px">Select a template</div>'}</div>
             </div>
         </div>`;
     };
@@ -102,22 +103,16 @@ class AutoUnitBuilder extends ModernUtil {
     refreshUI = () => {
         const town = uw.ITowns.getCurrentTown();
         const townId = (town && town.id) || this.lastTownId;
-        if (!townId) return;
+        if (!townId || !town) return;
         const tplId = this.townTemplates[townId] || '';
         const tpl = this.TEMPLATES[tplId];
-        if (!town) return;
         const bld = town.getBuildings?.().attributes || {};
         const res = town.getResearches?.().attributes || {};
-        const statusColor = this.active ? '#1aff1a' : '#aaa';
-
-        $('#ub_status').css('color', statusColor).text(this.currentAction || (this.active ? 'ACTIVE' : 'STOPPED'));
-        if (tpl) {
-            $('#ub_town_info').html(`${town.getName()} [${town.getPoints()} pts] <span style="margin-left:8px">${tpl.icon} ${tpl.label}</span>`);
-        } else {
-            $('#ub_town_info').html(`${town.getName()} [${town.getPoints()} pts] <span style="margin-left:8px;opacity:.5">no template</span>`);
-        }
+        const sColor = this.active ? '#1aff1a' : '#aaa';
+        $('#ub_status').css('color', sColor).text(this.currentAction || (this.active ? 'ACTIVE' : 'STOPPED'));
+        $('#ub_town_info').html(`<b>${town.getName()}</b> [${town.getPoints()} pts]${tpl ? ' <span style="margin-left:4px">' + tpl.icon + ' ' + tpl.label + '</span>' : ' <span style="opacity:.5">no template</span>'}`);
         $('#ub_buttons').html(this.renderButtons(townId, tplId));
-        $('#ub_progress').html(tpl ? this.renderProgress(town, tpl, bld, res) : '<div style="text-align:center;opacity:.5;padding:10px">Select a template</div>');
+        $('#ub_progress').html(tpl ? this.renderProgress(tpl, bld, res, town) : '<div style="text-align:center;opacity:.5;padding:8px">Select a template</div>');
     };
 
     renderButtons = (townId, current) => {
@@ -134,41 +129,42 @@ class AutoUnitBuilder extends ModernUtil {
         return h;
     };
 
-    renderProgress = (town, tpl, bld, res) => {
-        let h = '';
+    renderProgress = (tpl, bld, res, town) => {
+        let h = '<div style="font-size:11px">';
         if (tpl.buildings) {
-            h += '<div style="font-weight:bold;margin:6px 0 3px;font-size:11px">Buildings</div>';
+            h += '<div style="margin:4px 0 2px"><b>Buildings</b></div>';
             Object.entries(tpl.buildings).forEach(([b, lvl]) => {
                 const cur = bld[b] || 0;
                 const pct = Math.min(100, Math.round(cur / lvl * 100));
                 const done = cur >= lvl;
-                const color = done ? '#4caf50' : '#ff9800';
-                h += `<div style="margin-bottom:2px;font-size:10px"><span style="display:inline-block;width:70px;color:#bbb">${b}</span>
-                    <span style="display:inline-block;width:100px;height:6px;background:#333;border-radius:3px;vertical-align:middle">
-                        <span style="display:block;width:${pct}%;height:100%;background:${color};border-radius:3px"></span>
+                const c = done ? '#4caf50' : '#ff9800';
+                h += `<div style="margin:1px 0"><span style="display:inline-block;width:70px">${b}</span>
+                    <span style="display:inline-block;width:90px;height:5px;background:#444;vertical-align:middle">
+                        <span style="display:block;width:${pct}%;height:100%;background:${c}"></span>
                     </span>
-                    <span style="color:${color};margin-left:4px">${cur}/${lvl} ${done ? '✓' : ''}</span></div>`;
+                    <span style="font-size:9px;color:${c};margin-left:2px">${cur}/${lvl}${done?' ✓':''}</span></div>`;
             });
         }
         if (tpl.academy) {
-            h += '<div style="font-weight:bold;margin:6px 0 3px;font-size:11px">Academy</div>';
+            h += '<div style="margin:4px 0 2px"><b>Academy</b></div>';
             tpl.academy.forEach(tech => {
                 const done = res[tech];
-                h += `<div style="font-size:10px;color:${done ? '#4caf50' : '#ff9800'};margin-bottom:1px">${done ? '✓' : '⏳'} ${tech}</div>`;
+                h += `<div style="margin:1px 0;color:${done?'#4caf50':'#ff9800'};font-size:10px">${done?'✓':'⏳'} ${tech}</div>`;
             });
         }
-        h += '<div style="font-weight:bold;margin:6px 0 3px;font-size:11px">Units</div>';
+        h += '<div style="margin:4px 0 2px"><b>Units</b></div>';
         Object.entries(tpl.units).forEach(([unit, target]) => {
             const owned = this.getOwnedCount(town, unit);
             const pct = Math.min(100, Math.round(owned / target * 100));
             const done = owned >= target;
-            const color = done ? '#4caf50' : '#4fc3f7';
-            h += `<div style="margin-bottom:2px;font-size:10px"><span style="display:inline-block;width:100px;color:#bbb">${unit}</span>
-                <span style="display:inline-block;width:100px;height:6px;background:#333;border-radius:3px;vertical-align:middle">
-                    <span style="display:block;width:${pct}%;height:100%;background:${color};border-radius:3px"></span>
+            const c = done ? '#4caf50' : '#4fc3f7';
+            h += `<div style="margin:1px 0"><span style="display:inline-block;width:100px">${unit}</span>
+                <span style="display:inline-block;width:90px;height:5px;background:#444;vertical-align:middle">
+                    <span style="display:block;width:${pct}%;height:100%;background:${c}"></span>
                 </span>
-                <span style="color:${color};margin-left:4px">${owned}/${target} ${done ? '✓' : ''}</span></div>`;
+                <span style="font-size:9px;color:${c};margin-left:2px">${owned}/${target}${done?' ✓':''}</span></div>`;
         });
+        h += '</div>';
         return h;
     };
 
@@ -213,8 +209,11 @@ class AutoUnitBuilder extends ModernUtil {
                 for (const [b, lv] of Object.entries(tpl.buildings)) {
                     if ((bld[b] || 0) >= lv) continue;
                     const r = t.resources();
-                    const bd = uw.MM?.getModels?.()?.BuildingBuildData?.[cid]?.attributes?.building_data?.[b]?.resources_for;
-                    if (bd && (r.wood < bd.wood + 20 || r.stone < bd.stone + 20 || r.iron < bd.iron + 20)) continue;
+                    const bd = uw.MM?.getModels?.()?.BuildingBuildData?.[cid]?.attributes?.building_data?.[b];
+                    if (!bd) continue;
+                    const cost = bd.resources_for;
+                    if (!cost) continue;
+                    if (r.wood < cost.wood + 20 || r.stone < cost.stone + 20 || r.iron < cost.iron + 20) continue;
                     uw.gpAjax.ajaxPost('frontend_bridge', 'execute', { model_url: 'BuildingOrder', action_name: 'buildUp', arguments: { building_id: b }, town_id: cid });
                     this.currentAction = `Building: ${b}`; this.refreshUI();
                     await this.sleep(1500); return;

@@ -33,7 +33,7 @@ class ModernBot {
         this.settingsFactory = new createGrepoWindow({
             id: 'MODERN_BOT',
             title: 'ModernBot',
-            size: [845, 300],
+            size: [900, 450],
             tabs: [
                 {
                     title: 'Farm',

@@ -19,6 +19,31 @@ class AutoFarm extends ModernUtil {
 
         this.timer = 0;
         this.lastTime = Date.now();
+        this.claiming = false;
+
+        // Captcha detection — pause farming when captcha is active
+        this.captchaActive = false;
+        this.checkCaptchaInterval = setInterval(() => {
+            if (this.simulateCaptcha || $('.botcheck').length || $('#recaptcha_window').length) {
+                if (!this.captchaActive) {
+                    this.captchaActive = true;
+                    if (this.console) this.console.log('Captcha detected, auto farm paused');
+                    if (this.active) {
+                        clearInterval(this.active);
+                        this.active = null;
+                    }
+                }
+            } else {
+                if (this.captchaActive) {
+                    this.captchaActive = false;
+                    if (this.console) this.console.log('Captcha resolved, auto farm resumed');
+                    if (!this.active && this.$count) {
+                        this.active = setInterval(this.main, 1000);
+                    }
+                }
+            }
+        }, 500);
+
         if (this.active) this.active = setInterval(this.main, 1000);
     }
 
@@ -166,8 +191,8 @@ class AutoFarm extends ModernUtil {
             min_percent = minResource / storage;
 
             islands_list.add(island_id);
+            if (min_percent >= this.percent) continue;
             polis_list.push(town.id);
-            // if (min_percent < this.percent) continue;
         }
 
         return polis_list;
@@ -300,31 +325,34 @@ class AutoFarm extends ModernUtil {
     };
 
     main = async () => {
-        // Check that the timer is not too high
+        // Sync timer with next collection time if it drifts too far
         const next_collection = this.getNextCollection();
-        if (next_collection && (this.timer > next_collection + 60 * 1_000 || this.timer < next_collection)) {
-            this.timer = next_collection + Math.floor(Math.random() * 20_000) + 10_000;
+        if (next_collection && !this.claiming) {
+            const drift = Math.abs(this.timer - next_collection);
+            if (drift > 120 * 1_000) {
+                this.timer = next_collection + Math.floor(Math.random() * 20_000) + 10_000;
+                this.lastTime = Date.now();
+            }
         }
 
         // Claim resources when timer has passed
-        if (this.timer < 1) {
-            // Generate the list of polis and claim resources
+        if (this.timer < 1 && !this.claiming) {
+            this.claiming = true;
             this.polis_list = this.generateList();
 
-            // Claim the resources, stop the interval and restart it
             clearInterval(this.active);
             this.active = null;
 
             await this.claim();
-            this.active = setInterval(this.main, 1000);
 
-            // Set the new timer 
             const rand = Math.floor(Math.random() * 20_000) + 10_000;
             this.timer = this.timing + rand;
-            if (this.timer < next_collection) this.timer = next_collection + rand;
+            this.lastTime = Date.now();
+            this.claiming = false;
+
+            this.active = setInterval(this.main, 1000);
         }
 
-        // update the timer
         this.updateTimer();
     };
 
@@ -370,7 +398,7 @@ class AutoFarm extends ModernUtil {
     fakeSelectAll = () =>
         new Promise((myResolve, myReject) => {
             const data = {
-                town_ids: this.polislist,
+                town_ids: this.polis_list || this.polislist || [],
             };
             uw.gpAjax.ajaxGet('farm_town_overviews', 'get_farm_towns_from_multiple_towns', data, false, () => myResolve());
         });

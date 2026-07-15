@@ -28,7 +28,7 @@ Si tu ne l'as pas : [Installer Tampermonkey](https://www.tampermonkey.net/)
 
 <p align="center">
   <a href="https://raw.githubusercontent.com/0000N/ModernBot/main/dist/merged.user.js">
-    <img src="https://img.shields.io/badge/Installer%20ModernBot-v1.20-brightgreen?style=for-the-badge&logo=tampermonkey" alt="Installer ModernBot">
+    <img src="https://img.shields.io/badge/Installer%20ModernBot-v1.22-brightgreen?style=for-the-badge&logo=tampermonkey" alt="Installer ModernBot">
   </a>
 </p>
 

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         ModernBot
 // @version      1.22.0
-// @description  A modern grepolis bot
+// @description  Grepolis Bot 2026 - Fork 0000N
 // @match        http://*.grepolis.com/game/*
 // @match        https://*.grepolis.com/game/*
 // @updateURL    https://github.com/0000N/ModernBot/raw/main/dist/merged.user.js
@@ -3752,27 +3752,42 @@ class AutoUnitBuilder extends ModernUtil {
         return c;
     }
 }
-// TO BE FINISCHED
+// About & version check
 class About {
-	constructor() {
-		this.checkVersion();
-	}
+    constructor() {
+        this.checkVersion();
+    }
 
-	settings = () => {};
+    settings = () => {
+        return `
+        <div class="game_border" style="margin-bottom: 20px">
+            <div class="game_border_top"></div><div class="game_border_bottom"></div>
+            <div class="game_border_left"></div><div class="game_border_right"></div>
+            <div class="game_border_corner corner1"></div><div class="game_border_corner corner2"></div>
+            <div class="game_border_corner corner3"></div><div class="game_border_corner corner4"></div>
+            <div class="game_header bold">ModernBot</div>
+            <div style="padding: 8px">
+                <p style="margin: 2px 0">Bot Grepolis 2026</p>
+                <p style="margin: 2px 0">Version: <span id="about_version">${GM_info?.script?.version || '?'}</span></p>
+                <p style="margin: 2px 0">Fork: <a href="https://github.com/0000N/ModernBot" target="_blank">github.com/0000N/ModernBot</a></p>
+                <p style="margin: 8px 0 2px 0; font-size: 10px; opacity: .7">Service MASE via OpenCode AI</p>
+            </div>
+        </div>`;
+    };
 
-	checkVersion = async () => {
-		if (!GM_info) return;
-
-		/* Check that the version it's the current one */
-		const installedVersion = GM_info.script.version;
-		const file = await fetch('https://raw.githubusercontent.com/Sau1707/ModernBot/main/version.txt');
-		const lastVersion = await file.text();
-
-		if (lastVersion != installedVersion) {
-			console.log('Versions differents');
-		}
-		console.log(lastVersion, installedVersion);
-	};
+    checkVersion = async () => {
+        if (!GM_info) return;
+        const installedVersion = GM_info.script.version;
+        try {
+            const file = await fetch('https://raw.githubusercontent.com/0000N/ModernBot/main/version.txt');
+            const lastVersion = await file.text();
+            if (lastVersion.trim() != installedVersion) {
+                console.log(`[ModernBot] Update available: ${lastVersion.trim()} (you: ${installedVersion})`);
+            }
+        } catch (e) {
+            // Ignore fetch errors
+        }
+    };
 }
 /* Setup autofarm in the window object */
 
@@ -3895,7 +3910,7 @@ class ModernBot {
     setup = () => {
         /* Activate */
         this.settingsFactory.activate();
-        uw.$('.gods_area_buttons').append("<div class='circle_button modern_bot_settings' onclick='window.modernBot.settingsFactory.openWindow()'><div style='width: 27px; height: 27px; background: url(https://raw.githubusercontent.com/Sau1707/ModernBot/main/img/gear.png) no-repeat 6px 5px' class='icon js-caption'></div></div>");
+        uw.$('.gods_area_buttons').append("<div class='circle_button modern_bot_settings' onclick='window.modernBot.settingsFactory.openWindow()'><div style='width: 27px; height: 27px; background: url(https://raw.githubusercontent.com/0000N/ModernBot/main/img/gear.png) no-repeat 6px 5px' class='icon js-caption'></div></div>");
 
         /* Add event to polis list menu */
         const editController = () => {
@@ -3908,9 +3923,9 @@ class ModernBot {
             const oldRender = townController.controller.town_groups_list_view.render;
             townController.controller.town_groups_list_view.render = function () {
                 oldRender.call(this);
-                const both = `<div style='position: absolute; background-image: url(https://raw.githubusercontent.com/Sau1707/ModernBot/main/img/hammer_wrench.png); background-size: 19px 19px; margin: 1px; background-repeat: no-repeat; position: absolute; height: 20px; width: 25px; right: 18px;'></div>`;
-                const build = `<div style='background-image: url(https://raw.githubusercontent.com/Sau1707/ModernBot/main/img/hammer_only.png); background-size: 19px 19px; margin: 1px; background-repeat: no-repeat; position: absolute; height: 20px; width: 25px; right: 18px;'></div>`;
-                const troop = `<div style='background-image: url(https://raw.githubusercontent.com/Sau1707/ModernBot/main/img/wrench.png); background-size: 19px 19px; margin: 1px; background-repeat: no-repeat; position: absolute; height: 20px; width: 25px; right: 18px;'></div>`;
+                const both = `<div style='position: absolute; background-image: url(https://raw.githubusercontent.com/0000N/ModernBot/main/img/hammer_wrench.png); background-size: 19px 19px; margin: 1px; background-repeat: no-repeat; position: absolute; height: 20px; width: 25px; right: 18px;'></div>`;
+                const build = `<div style='background-image: url(https://raw.githubusercontent.com/0000N/ModernBot/main/img/hammer_only.png); background-size: 19px 19px; margin: 1px; background-repeat: no-repeat; position: absolute; height: 20px; width: 25px; right: 18px;'></div>`;
+                const troop = `<div style='background-image: url(https://raw.githubusercontent.com/0000N/ModernBot/main/img/wrench.png); background-size: 19px 19px; margin: 1px; background-repeat: no-repeat; position: absolute; height: 20px; width: 25px; right: 18px;'></div>`;
                 const townIds = Object.keys(uw.modernBot.autoBuild.towns_buildings);
                 const troopsIds = uw.modernBot.autoTrain.getActiveList().map(entry => entry.toString());
                 uw.$('.town_group_town').each(function () {

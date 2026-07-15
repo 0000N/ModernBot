@@ -119,7 +119,7 @@ class ModernBot {
     setup = () => {
         /* Activate */
         this.settingsFactory.activate();
-        uw.$('.gods_area_buttons').append("<div class='circle_button modern_bot_settings' onclick='window.modernBot.settingsFactory.openWindow()'><div style='width: 27px; height: 27px; background: url(https://raw.githubusercontent.com/Sau1707/ModernBot/main/img/gear.png) no-repeat 6px 5px' class='icon js-caption'></div></div>");
+        uw.$('.gods_area_buttons').append("<div class='circle_button modern_bot_settings' onclick='window.modernBot.settingsFactory.openWindow()'><div style='width: 27px; height: 27px; background: url(https://raw.githubusercontent.com/0000N/ModernBot/main/img/gear.png) no-repeat 6px 5px' class='icon js-caption'></div></div>");
 
         /* Add event to polis list menu */
         const editController = () => {
@@ -132,9 +132,9 @@ class ModernBot {
             const oldRender = townController.controller.town_groups_list_view.render;
             townController.controller.town_groups_list_view.render = function () {
                 oldRender.call(this);
-                const both = `<div style='position: absolute; background-image: url(https://raw.githubusercontent.com/Sau1707/ModernBot/main/img/hammer_wrench.png); background-size: 19px 19px; margin: 1px; background-repeat: no-repeat; position: absolute; height: 20px; width: 25px; right: 18px;'></div>`;
-                const build = `<div style='background-image: url(https://raw.githubusercontent.com/Sau1707/ModernBot/main/img/hammer_only.png); background-size: 19px 19px; margin: 1px; background-repeat: no-repeat; position: absolute; height: 20px; width: 25px; right: 18px;'></div>`;
-                const troop = `<div style='background-image: url(https://raw.githubusercontent.com/Sau1707/ModernBot/main/img/wrench.png); background-size: 19px 19px; margin: 1px; background-repeat: no-repeat; position: absolute; height: 20px; width: 25px; right: 18px;'></div>`;
+                const both = `<div style='position: absolute; background-image: url(https://raw.githubusercontent.com/0000N/ModernBot/main/img/hammer_wrench.png); background-size: 19px 19px; margin: 1px; background-repeat: no-repeat; position: absolute; height: 20px; width: 25px; right: 18px;'></div>`;
+                const build = `<div style='background-image: url(https://raw.githubusercontent.com/0000N/ModernBot/main/img/hammer_only.png); background-size: 19px 19px; margin: 1px; background-repeat: no-repeat; position: absolute; height: 20px; width: 25px; right: 18px;'></div>`;
+                const troop = `<div style='background-image: url(https://raw.githubusercontent.com/0000N/ModernBot/main/img/wrench.png); background-size: 19px 19px; margin: 1px; background-repeat: no-repeat; position: absolute; height: 20px; width: 25px; right: 18px;'></div>`;
                 const townIds = Object.keys(uw.modernBot.autoBuild.towns_buildings);
                 const troopsIds = uw.modernBot.autoTrain.getActiveList().map(entry => entry.toString());
                 uw.$('.town_group_town').each(function () {

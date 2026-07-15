@@ -38,9 +38,9 @@ const header = `// ==UserScript==
 // @description  A modern grepolis bot
 // @match        http://*.grepolis.com/game/*
 // @match        https://*.grepolis.com/game/*
-// @updateURL    https://github.com/Sau1707/ModernBot/blob/main/dist/merged.user.js
-// @downloadURL  https://github.com/Sau1707/ModernBot/blob/main/dist/merged.user.js
-// @icon         https://raw.githubusercontent.com/Sau1707/ModernBot/main/img/gear.png
+// @updateURL    https://github.com/0000N/ModernBot/blob/main/dist/merged.user.js
+// @downloadURL  https://github.com/0000N/ModernBot/blob/main/dist/merged.user.js
+// @icon         https://raw.githubusercontent.com/0000N/ModernBot/main/img/gear.png
 // @require      http://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js
 // ==/UserScript==
 

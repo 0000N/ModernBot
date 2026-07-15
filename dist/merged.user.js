@@ -2514,6 +2514,7 @@ class AutoTrain extends ModernUtil {
     POWER_LIST = ['call_of_the_ocean', 'spartan_training', 'fertility_improvement'];
     GROUND_ORDER = ['catapult', 'sword', 'archer', 'hoplite', 'slinger', 'rider', 'chariot'];
     NAVAL_ORDER = ['small_transporter', 'bireme', 'trireme', 'attack_ship', 'big_transporter', 'demolition_ship', 'colonize_ship'];
+    MAX_BATCH = 25;
     SHIFT_LEVELS = {
         catapult: [5, 5],
         sword: [200, 50],
@@ -2824,8 +2825,17 @@ class AutoTrain extends ModernUtil {
         if (!troops) return null;
 
         const unitOrder = unitType === 'naval' ? this.NAVAL_ORDER : this.GROUND_ORDER;
-        for (const unit of unitOrder) {
-            if (troops[unit] && this.getTroopCount(unit, town_id) !== 0) return unit;
+        const offsetKey = `${town_id}_${unitType}`;
+        const start = this._nextOffset?.[offsetKey] || 0;
+
+        for (let i = 0; i < unitOrder.length; i++) {
+            const idx = (start + i) % unitOrder.length;
+            const unit = unitOrder[idx];
+            if (troops[unit] && this.getTroopCount(unit, town_id) !== 0) {
+                if (!this._nextOffset) this._nextOffset = {};
+                this._nextOffset[offsetKey] = (idx + 1) % unitOrder.length;
+                return unit;
+            }
         }
 
         return null;
@@ -2865,7 +2875,7 @@ class AutoTrain extends ModernUtil {
         max = max > duable_with_pop ? duable_with_pop : max;
 
         if (count <= 0) return 0;
-        let affordable = Math.min(count, current, max, duable_with_pop);
+        let affordable = Math.min(count, current, max, duable_with_pop, this.MAX_BATCH);
         return affordable >= 1 ? affordable : -1;
     };
 

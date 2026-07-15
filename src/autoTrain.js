@@ -352,13 +352,9 @@ class AutoTrain extends ModernUtil {
         let max = parseInt(Math.min(w_max, s_max, i_max) * this.percentual);
         max = max > duable_with_pop ? duable_with_pop : max;
 
-        if (max > count) {
-            return count > current ? -1 : count;
-        } else {
-            if (current >= max && current < duable_with_pop) return current;
-            if (current >= max && current > duable_with_pop) return duable_with_pop;
-            return -1;
-        }
+        if (count <= 0) return 0;
+        let affordable = Math.min(count, current, max, duable_with_pop);
+        return affordable >= 1 ? affordable : -1;
     };
 
     /* Check the given town, for ground or land */

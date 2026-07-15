@@ -1,47 +1,57 @@
-# ModernBot — Fork OpenCode
+# ModernBot — Grepolis Bot
 
 ![screenshot](./img/screen.png)
 
-<br />
+<p align="center">
+  <a href="README.md">🇬🇧 English</a> •
+  <a href="README.fr.md">🇫🇷 Français</a> •
+  <a href="README.de.md">🇩🇪 Deutsch</a> •
+  <a href="README.es.md">🇪🇸 Español</a> •
+  <a href="README.it.md">🇮🇹 Italiano</a> •
+  <a href="README.pt.md">🇧🇷 Português</a> •
+  <a href="README.zh.md">🇨🇳 中文</a> •
+  <a href="README.ru.md">🇷🇺 Русский</a> •
+  <a href="README.ar.md">🇸🇦 العربية</a>
+</p>
 
-Maintenu par [0000N](https://github.com/0000N) — Fork de [Sau1707/ModernBot](https://github.com/Sau1707/ModernBot).  
-**Le code est géré automatiquement via [OpenCode](https://opencode.ai) — agent IA dédié au développement et à la correction du bot.**
+---
 
-<br />
+A fork of [Sau1707/ModernBot](https://github.com/Sau1707/ModernBot), maintained by [0000N](https://github.com/0000N).  
+**Code managed via [OpenCode](https://opencode.ai) — an AI agent dedicated to bot development and bug fixes.**
 
 ## Installation
 
 ### <div align="center"> [Version 1.0 (src)](https://github.com/0000N/ModernBot/raw/main/dist/merged.user.js) </div>
 
-Version 2.0 Work in progress — [Suivre l'avancement](https://github.com/0000N/ModernBot/issues)
+Version 2.0 Work in progress — [Track progress](https://github.com/0000N/ModernBot/issues)
 
-<br /> 
+<br />
 
-## Signaler un problème
+## Report an Issue
 
-**Les issues sont ouvertes sur ce fork** : [https://github.com/0000N/ModernBot/issues](https://github.com/0000N/ModernBot/issues)
+**Issues are open on this fork** — [https://github.com/0000N/ModernBot/issues](https://github.com/0000N/ModernBot/issues)
 
-Quand tu crées une issue :
-- Une réponse automatique confirme la réception
-- Le code sera corrigé et proposé pour validation
-- Tu es notifié quand la correction est prête
+When you create an issue:
+- An automatic reply confirms reception
+- The code will be fixed and proposed for validation
+- You'll be notified when the fix is ready
 
 <br />
 
 ## Script
 
-The script it's divided in modules under the `src` directory.
+The script is divided in modules under the `src` directory.
 
-by running in the main folder
+Run in the main folder:
 
 ```
 npm install
 npm run dev
 ```
 
-it will create a nodemon server that listen to changes in the code. Each time a file it's saved all the modules are merged into one under the dist folder
+This creates a nodemon server that listens for code changes. Each time a file is saved, all modules are merged into one under the `dist` folder.
 
-Place this into a tampermokey script:
+Place this in a Tampermonkey script:
 
 ```
 // ==UserScript==
@@ -55,24 +65,20 @@ Place this into a tampermokey script:
 // ==/UserScript==
 ```
 
-In case of loading error `@require: couldn't load ` go to
+If you get `@require: couldn't load` error, go to:
 
 ```
 chrome://extensions/
 ```
 
-Then select tampermoney and add `Allow access to file URLs`
+Then select Tampermonkey and add `Allow access to file URLs`.
 
 <br />
 
 ## Disclaimer
 
-This open-source bot is designed for use with Grepolis, a video game developed by InnoGames. However, please note that this bot is not endorsed or approved by InnoGames, and the use of this bot may be against the game's terms of service. We do not encourage or condone the use of this bot to gain an unfair advantage or violate the game's rules.
+This open-source bot is designed for use with Grepolis, a video game developed by InnoGames. This bot is not endorsed or approved by InnoGames. Use at your own risk — InnoGames may take action against accounts violating their terms of service.
 
-The use of this bot is entirely at your own risk, and we accept no liability for any consequences that may arise from its use. By using this bot, you acknowledge and accept that InnoGames may take action against your account for violating their terms of service. We strongly recommend that you read and understand the game's rules before using this bot.
-
-Additionally, this bot is provided as open-source software, and we do not offer any technical support or assistance in its installation, configuration, or use. You are solely responsible for any modifications or customizations you make to the bot's code, and we accept no responsibility for any issues that may arise as a result.
-
-By using this bot, you acknowledge and accept these terms and conditions and agree to use it responsibly and in accordance with the applicable laws and regulations.
+This bot is provided as open-source software with no technical support or assistance.
 
 - Icons from [flaticon](https://www.flaticon.com/)

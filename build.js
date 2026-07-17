@@ -5,6 +5,7 @@ const path = require('path');
 const distPath = path.join(__dirname, 'dist/modernbot.user.js');
 const modulesPath = path.join(__dirname, 'new/modules');
 const menuPath = path.join(__dirname, 'new/menu.js');
+const gameApiPath = path.join(__dirname, 'new/gameApi.js');
 const indexPath = path.join(__dirname, 'new/index.js');
 const utilsPath = path.join(__dirname, 'new/utils.js');
 const windowPath = path.join(__dirname, 'new/window.js');
@@ -68,8 +69,8 @@ if (!fs.existsSync(path.dirname(distPath))) {
 // Write header and style to the output file
 fs.writeFileSync(distPath, header);
 
-// Append utils.js
-[utilsPath, windowPath].forEach(filePath => {
+// Append gameApi.js and utils.js first
+[gameApiPath, utilsPath, windowPath].forEach(filePath => {
     const content = fs.readFileSync(filePath, 'utf-8');
     const fileName = path.basename(filePath);
     fs.appendFileSync(distPath, `\n\n// File: ${fileName}\n${content}`);

@@ -67,6 +67,52 @@ class GameApi {
         GameApi._safe('notifyError', () => uw.HumanMessage?.error?.(msg));
     }
 
+    /* --- Buildings / Trade capacity --- */
+    static getBuildings(townId) {
+        return GameApi._safe('getBuildings', () => {
+            const t = GameApi.getTown(townId);
+            return t ? t.buildings().attributes : {};
+        }, {});
+    }
+    static availableTradeCapacity(townId) {
+        return GameApi._safe('tradeCapacity', () => {
+            const t = GameApi.getTown(townId);
+            return t ? t.getAvailableTradeCapacity() : 0;
+        }, 0);
+    }
+
+    /* --- Farm towns --- */
+    static getFarmTowns() {
+        return GameApi._safe('getFarmTowns',
+            () => uw.MM.getOnlyCollectionByName('FarmTown')?.models || [], []);
+    }
+    static getFarmPlayerRelations() {
+        return GameApi._safe('getFarmRelations',
+            () => uw.MM.getOnlyCollectionByName('FarmTownPlayerRelation')?.models || [], []);
+    }
+
+    /* --- Trade overview --- */
+    static getAllTrades() {
+        return new Promise(resolve => {
+            GameApi.ajaxGet('town_overviews', 'trade_overview', {}, data => {
+                resolve(GameApi._safe('parseTrades', () => data?.movements || [], []));
+            });
+            setTimeout(() => resolve([]), 5000);
+        });
+    }
+
+    /* --- Units / mods --- */
+    static getUnitBuildMod(townId, unitData) {
+        return GameApi._safe('unitBuildMod',
+            () => uw.GeneralModifications?.getUnitBuildResourcesModification?.(townId, unitData) || 1, 1);
+    }
+    static getAvailablePop(townId) {
+        return GameApi._safe('availablePop', () => {
+            const t = GameApi.getTown(townId);
+            return t ? t.getAvailablePopulation() : 0;
+        }, 0);
+    }
+
     /* --- Bot-blocking detection --- */
     static isCaptchaActive() {
         // Any of these selectors present => a human check is on screen.

@@ -7,7 +7,6 @@ class AutoResource extends ModernUtil {
         this.resendPercent = this.storage.load('ar_resend', 50);
         this.reserve = this.storage.load('ar_reserve', { wood: 10000, stone: 10000, iron: 10000 });
         this.interval = null;
-
         if (this.enabled) this.start();
     }
 
@@ -42,12 +41,30 @@ class AutoResource extends ModernUtil {
                 <div style="margin-bottom:4px">
                     Target: <b>${targetLabel}</b> (${currentTarget ? currentTarget.getPoints() + ' pts' : 'not set'})
                 </div>
+
                 <div style="margin-bottom:4px;font-size:11px;font-weight:normal">
-                    Fill when below <b>${this.resendPercent}%</b> storage → stop at <b>${this.fillPercent}%</b>
+                    <span style="cursor:pointer;margin-right:6px" onclick="window.modernBot.autoResource.editFill(-5)">◀</span>
+                    Fill stop: <b>${this.fillPercent}%</b>
+                    <span style="cursor:pointer;margin-left:6px" onclick="window.modernBot.autoResource.editFill(5)">▶</span>
+                    &nbsp;|&nbsp;
+                    <span style="cursor:pointer;margin-right:6px" onclick="window.modernBot.autoResource.editResend(-5)">◀</span>
+                    Resend: <b>${this.resendPercent}%</b>
+                    <span style="cursor:pointer;margin-left:6px" onclick="window.modernBot.autoResource.editResend(5)">▶</span>
                 </div>
+
                 <div style="margin-bottom:4px;font-size:11px;font-weight:normal">
-                    Reserve per city: ${this.reserve.wood}w / ${this.reserve.stone}s / ${this.reserve.iron}i
+                    Reserve per city:
+                    <span style="margin-left:4px">Wood:</span>
+                    <input id="ar_wood_res" type="number" value="${this.reserve.wood}" style="width:70px;font-size:10px"
+                        onchange="window.modernBot.autoResource.setReserve('wood', this.value)">
+                    <span style="margin-left:4px">Stone:</span>
+                    <input id="ar_stone_res" type="number" value="${this.reserve.stone}" style="width:70px;font-size:10px"
+                        onchange="window.modernBot.autoResource.setReserve('stone', this.value)">
+                    <span style="margin-left:4px">Iron:</span>
+                    <input id="ar_iron_res" type="number" value="${this.reserve.iron}" style="width:70px;font-size:10px"
+                        onchange="window.modernBot.autoResource.setReserve('iron', this.value)">
                 </div>
+
                 <div style="display:flex;flex-wrap:wrap;gap:3px;margin-top:4px">
                     ${towns.map(([id, t]) => {
                         const isTarget = id == this.targetTown;
@@ -76,6 +93,22 @@ class AutoResource extends ModernUtil {
         this.storage.save('ar_target', townId);
     };
 
+    editFill = delta => {
+        this.fillPercent = Math.max(10, Math.min(100, this.fillPercent + delta));
+        this.storage.save('ar_fill', this.fillPercent);
+    };
+
+    editResend = delta => {
+        this.resendPercent = Math.max(5, Math.min(95, this.resendPercent + delta));
+        this.storage.save('ar_resend', this.resendPercent);
+    };
+
+    setReserve = (type, value) => {
+        const num = parseInt(value) || 0;
+        this.reserve[type] = num;
+        this.storage.save('ar_reserve', this.reserve);
+    };
+
     main = async () => {
         if (!this.enabled || !this.targetTown) return;
         if ($('.botcheck').length || $('#recaptcha_window').length) return;
@@ -85,22 +118,18 @@ class AutoResource extends ModernUtil {
 
         const targetRes = target.resources();
         const targetStorage = targetRes.storage;
-        const fillLevel = this.fillPercent / 100;
-        const resendLevel = this.resendPercent / 100;
-        const fillCap = Math.floor(targetStorage * fillLevel);
-        const resendCap = Math.floor(targetStorage * resendLevel);
+        const fillCap = Math.floor(targetStorage * this.fillPercent / 100);
+        const resendCap = Math.floor(targetStorage * this.resendPercent / 100);
 
-        // Check if target needs resources
         const targetWood = targetRes.wood || 0;
         const targetStone = targetRes.stone || 0;
         const targetIron = targetRes.iron || 0;
 
         if (targetWood >= resendCap && targetStone >= resendCap && targetIron >= resendCap) {
-            this.updateInfo(`Target storage OK (${targetWood}/${fillCap}w)`);
-            return; // Don't send, storage is above resend threshold
+            this.updateInfo(`Target OK (${targetWood}/${fillCap}w)`);
+            return;
         }
 
-        // Calculate needed resources
         const needWood = Math.max(0, fillCap - targetWood);
         const needStone = Math.max(0, fillCap - targetStone);
         const needIron = Math.max(0, fillCap - targetIron);
@@ -110,7 +139,6 @@ class AutoResource extends ModernUtil {
             return;
         }
 
-        // Send from all cities except target
         let sent = false;
         for (const [cityId, city] of Object.entries(uw.ITowns.towns || {})) {
             if (cityId == this.targetTown) continue;
@@ -123,7 +151,6 @@ class AutoResource extends ModernUtil {
 
             if (spareWood <= 0 && spareStone <= 0 && spareIron <= 0) continue;
 
-            // Send what we have spare, limited by what target needs
             const sendWood = Math.min(spareWood, needWood);
             const sendStone = Math.min(spareStone, needStone);
             const sendIron = Math.min(spareIron, needIron);
@@ -143,14 +170,10 @@ class AutoResource extends ModernUtil {
             this.console.log(`Sent ${sendWood}w/${sendStone}s/${sendIron}i from ${city.getName()} to ${target.getName()}`);
             sent = true;
             await this.sleep(500);
-            break; // One trade per cycle
+            break;
         }
 
-        if (sent) {
-            this.updateInfo('Sent resources');
-        } else {
-            this.updateInfo('No city has spare resources');
-        }
+        this.updateInfo(sent ? 'Sent resources' : 'No city has spare resources');
     };
 
     updateInfo = msg => {

@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         ModernBot V2
-// @version      1.22.9
+// @version      1.22.10
 // @description  ModernBot V2 — Grepolis automation bot (OpenCode AI managed)
 // @match        http://*.grepolis.com/game/*
 // @match        https://*.grepolis.com/game/*
@@ -2629,7 +2629,7 @@ const loader = setInterval(() => {
 
     setInterval(() => {
         modernBot.loop();
-    }, 250);
+    }, 2000);
 
 }, 100);
 

@@ -158,6 +158,6 @@ const loader = setInterval(() => {
 
     setInterval(() => {
         modernBot.loop();
-    }, 250);
+    }, 2000);
 
 }, 100);

@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         ModernBot V2
-// @version      1.22.12
+// @version      1.22.13
 // @description  ModernBot V2 — Grepolis automation bot (OpenCode AI managed)
 // @match        http://*.grepolis.com/game/*
 // @match        https://*.grepolis.com/game/*
@@ -66,11 +66,26 @@
 }
 
 /* --- Global fixes --- */
-#MODERN_BOT_content {
-    font-size: 13px;
+#MODERN_BOT_content, #MODERN_BOT_content * {
+    font-size: 13px !important;
     background: #0d0d0d !important;
-    color: #f0e6d2;
-    height: 100%;
+    color: #e0e0e0 !important;
+}
+#MODERN_BOT_content .game_header,
+#MODERN_BOT_content .game_header * {
+    color: #ffcc00 !important;
+    font-weight: bold !important;
+}
+#MODERN_BOT_content .button_new,
+#MODERN_BOT_content .button_new * {
+    color: #fff !important;
+    background: #2a2a2a !important;
+    border: 1px solid #555 !important;
+}
+#MODERN_BOT_content .button_new.disabled,
+#MODERN_BOT_content .button_new.disabled * {
+    background: #ffcc00 !important;
+    color: #000 !important;
 }
 
 /* --- Layout repris de la v1 --- */

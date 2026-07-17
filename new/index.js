@@ -13,6 +13,8 @@ class ModernBot {
         this.lastInteraction = Date.now();
         this.lastAction = Date.now();
         this.loopActive = false;
+        this.utils = new ModernUtils();
+        this.currentDelay = this.utils.jitter(1000 * 8);
 
         this.autoFarm = new AutoFarm();
         this.autoUnitBuilder = new AutoUnitBuilder();
@@ -46,47 +48,37 @@ class ModernBot {
     }
 
     async loop() {
-        // Check if the captcha is active or the user has interacted with the page
         if (Date.now() - this.lastInteraction < this.STOP_TIME) return;
-        if ($('.botcheck').length || $('#recaptcha_window').length) return;
-        if (Date.now() - this.lastAction < this.ACTION_DELAY) return;
-        // recaptcha_window / g-recaptcha / recaptcha_container / captcha_curtain
-
+        if (GameApi.isCaptchaActive()) return;
+        if (Date.now() - this.lastAction < this.currentDelay) return;
         if (this.loopActive) return;
+        if (this.utils.shouldSkip()) {
+            this.lastAction = Date.now();
+            this.currentDelay = this.utils.jitter(1000 * 8);
+            return;
+        }
         this.loopActive = true;
 
-        // The bot is active, ensure the settings icon is rotating
         $("#modern_settings").addClass("rotate-forever")
 
-        // After each action, wait for the delay to pass
-        // TODO: Add a ramdon delay that sometimes skips the action
-
-        // Check if the farm is available
-        // Farm can be done in every island / Current town
         const hasFarm = await this.autoFarm.execute();
         if (hasFarm) {
             console.log("Farm was executed");
             this.lastAction = Date.now();
+            this.currentDelay = this.utils.jitter(1000 * 8);
             this.loopActive = false;
             return;
         };
 
-        // Check if unit builder has units to train / build
         const hasUnitBuild = await this.autoUnitBuilder.execute();
         if (hasUnitBuild) {
             console.log("[ModernBot] unit builder executed");
             this.lastAction = Date.now();
+            this.currentDelay = this.utils.jitter(1000 * 8);
             this.loopActive = false;
             return;
         }
 
-        // TODO: Check for building upgrades
-        // TODO: Check for research upgrades
-        // TODO: Check for rural trades / upgrades
-        // TODO: Check if the town has the bootcamp?
-        // TODO: Check if the gratis can be claimed
-        // TODO: Cave?
-        // TODO: Train & Heros?
         this.loopActive = false;
     }
 

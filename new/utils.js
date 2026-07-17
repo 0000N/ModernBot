@@ -53,5 +53,14 @@ class ModernUtils {
         return $button;
     }
 
+    jitter(base) {
+        return base + Math.floor(Math.random() * base * 0.5);
+    }
+
+    shouldSkip() {
+        // Randomly skip ~10% of cycles for anti-pattern disguise
+        return Math.random() < 0.1;
+    }
+
 }
 

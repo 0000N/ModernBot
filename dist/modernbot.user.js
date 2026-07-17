@@ -204,6 +204,15 @@ class ModernUtils {
         return $button;
     }
 
+    jitter(base) {
+        return base + Math.floor(Math.random() * base * 0.5);
+    }
+
+    shouldSkip() {
+        // Randomly skip ~10% of cycles for anti-pattern disguise
+        return Math.random() < 0.1;
+    }
+
 }
 
 
@@ -844,6 +853,30 @@ class AutoUnitBuilder extends ModernUtils {
 }
 
 
+// Module: modernConsole.js
+class ModernConsole {
+    constructor(maxLines = 200) {
+        this.maxLines = maxLines;
+        this.$el = null;
+    }
+
+    attach($container) {
+        this.$el = $('<div>', { class: 'console_modernbot', id: 'modern_console' });
+        $container.append(this.$el);
+        return this.$el;
+    }
+
+    log(message) {
+        const time = new Date().toLocaleTimeString();
+        console.log(`[ModernBot ${time}] ${message}`);
+        if (!this.$el) return;
+        this.$el.prepend($('<p>').text(`[${time}] ${message}`));
+        const $lines = this.$el.children('p');
+        if ($lines.length > this.maxLines) $lines.slice(this.maxLines).remove();
+    }
+}
+
+
 // File: menu.js
 // Handle the creation of the menu
 
@@ -895,6 +928,8 @@ class ModernBot {
         this.lastInteraction = Date.now();
         this.lastAction = Date.now();
         this.loopActive = false;
+        this.utils = new ModernUtils();
+        this.currentDelay = this.utils.jitter(1000 * 8);
 
         this.autoFarm = new AutoFarm();
         this.autoUnitBuilder = new AutoUnitBuilder();
@@ -928,47 +963,37 @@ class ModernBot {
     }
 
     async loop() {
-        // Check if the captcha is active or the user has interacted with the page
         if (Date.now() - this.lastInteraction < this.STOP_TIME) return;
-        if ($('.botcheck').length || $('#recaptcha_window').length) return;
-        if (Date.now() - this.lastAction < this.ACTION_DELAY) return;
-        // recaptcha_window / g-recaptcha / recaptcha_container / captcha_curtain
-
+        if (GameApi.isCaptchaActive()) return;
+        if (Date.now() - this.lastAction < this.currentDelay) return;
         if (this.loopActive) return;
+        if (this.utils.shouldSkip()) {
+            this.lastAction = Date.now();
+            this.currentDelay = this.utils.jitter(1000 * 8);
+            return;
+        }
         this.loopActive = true;
 
-        // The bot is active, ensure the settings icon is rotating
         $("#modern_settings").addClass("rotate-forever")
 
-        // After each action, wait for the delay to pass
-        // TODO: Add a ramdon delay that sometimes skips the action
-
-        // Check if the farm is available
-        // Farm can be done in every island / Current town
         const hasFarm = await this.autoFarm.execute();
         if (hasFarm) {
             console.log("Farm was executed");
             this.lastAction = Date.now();
+            this.currentDelay = this.utils.jitter(1000 * 8);
             this.loopActive = false;
             return;
         };
 
-        // Check if unit builder has units to train / build
         const hasUnitBuild = await this.autoUnitBuilder.execute();
         if (hasUnitBuild) {
             console.log("[ModernBot] unit builder executed");
             this.lastAction = Date.now();
+            this.currentDelay = this.utils.jitter(1000 * 8);
             this.loopActive = false;
             return;
         }
 
-        // TODO: Check for building upgrades
-        // TODO: Check for research upgrades
-        // TODO: Check for rural trades / upgrades
-        // TODO: Check if the town has the bootcamp?
-        // TODO: Check if the gratis can be claimed
-        // TODO: Cave?
-        // TODO: Train & Heros?
         this.loopActive = false;
     }
 

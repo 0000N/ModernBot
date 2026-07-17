@@ -4003,13 +4003,7 @@ class ModernBot {
                     title: 'Train',
                     id: 'train',
                     render: this.settingsTrain,
-                } */
-                /*,
-                {
-                    title: 'Trade',
-                    id: 'trade',
-                    render: this.settingsTrade,
-                }*/,
+                },
                 {
                     title: 'Mix',
                     id: 'mix',

@@ -43,13 +43,13 @@ class AutoResource extends ModernUtil {
                 </div>
 
                 <div style="margin-bottom:4px;font-size:11px;font-weight:normal">
-                    <span style="cursor:pointer;margin-right:6px" onclick="window.modernBot.autoResource.editFill(-5)">◀</span>
-                    Fill stop: <b>${this.fillPercent}%</b>
-                    <span style="cursor:pointer;margin-left:6px" onclick="window.modernBot.autoResource.editFill(5)">▶</span>
+                    <span style="cursor:pointer;margin-right:6px" onclick="event.stopPropagation();window.modernBot.autoResource.editFill(-5)">◀</span>
+                    Fill stop: <b id="ar_fill">${this.fillPercent}%</b>
+                    <span style="cursor:pointer;margin-left:6px" onclick="event.stopPropagation();window.modernBot.autoResource.editFill(5)">▶</span>
                     &nbsp;|&nbsp;
-                    <span style="cursor:pointer;margin-right:6px" onclick="window.modernBot.autoResource.editResend(-5)">◀</span>
-                    Resend: <b>${this.resendPercent}%</b>
-                    <span style="cursor:pointer;margin-left:6px" onclick="window.modernBot.autoResource.editResend(5)">▶</span>
+                    <span style="cursor:pointer;margin-right:6px" onclick="event.stopPropagation();window.modernBot.autoResource.editResend(-5)">◀</span>
+                    Resend: <b id="ar_resend">${this.resendPercent}%</b>
+                    <span style="cursor:pointer;margin-left:6px" onclick="event.stopPropagation();window.modernBot.autoResource.editResend(5)">▶</span>
                 </div>
 
                 <div style="margin-bottom:4px;font-size:11px;font-weight:normal">
@@ -105,11 +105,15 @@ class AutoResource extends ModernUtil {
     editFill = delta => {
         this.fillPercent = Math.max(10, Math.min(100, this.fillPercent + delta));
         this.storage.save('ar_fill', this.fillPercent);
+        const el = document.getElementById('ar_fill');
+        if (el) el.textContent = this.fillPercent + '%';
     };
 
     editResend = delta => {
         this.resendPercent = Math.max(5, Math.min(95, this.resendPercent + delta));
         this.storage.save('ar_resend', this.resendPercent);
+        const el = document.getElementById('ar_resend');
+        if (el) el.textContent = this.resendPercent + '%';
     };
 
     editReserve = (type, delta) => {

@@ -203,10 +203,37 @@ class GameApi {
             () => uw.MM.getModelByNameAndPlayerId(name), null);
     }
 
+    /* --- Buildings data --- */
+    static getBuildingData(name) {
+        return GameApi._safe('getBuildingData', () => uw.GameData?.buildings?.[name], null);
+    }
+    static getBuildingBuildData(townId) {
+        return GameApi._safe('getBuildingBuildData',
+            () => uw.MM?.getModels?.()?.BuildingBuildData?.[townId]?.attributes?.building_data, null);
+    }
+    static getCastedPowers() {
+        return GameApi._safe('getCastedPowers',
+            () => uw.MM?.getFirstTownAgnosticCollectionByName?.('CastedPowers')?.fragments, {});
+    }
+    static unitDiscount(townId, unitData) {
+        return GameApi._safe('unitDiscount',
+            () => uw.GeneralModifications?.getUnitBuildResourcesModification?.(townId, unitData) || 1, 1);
+    }
+
     /* --- Ajax with error handler --- */
     static ajaxPostWithHandlers(controller, action, data, onSuccess, onError) {
         return GameApi._safe('ajaxPostHandlers',
             () => uw.gpAjax.ajaxPost(controller, action, data, false, onSuccess, onError), null);
+    }
+    /* --- Monkey-patch for attack command ID --- */
+    static hookWindowCreateForCommandId(setId) {
+        const mgr = uw.GPWindowMgr;
+        if (mgr._modernOrigCreate) return;
+        mgr._modernOrigCreate = mgr.Create;
+        mgr.Create = function (type, title, params, id) {
+            if (type === mgr.TYPE_ATK_COMMAND && id) setId(id);
+            return mgr._modernOrigCreate.apply(this, arguments);
+        };
     }
 
     /* --- Collections --- */
@@ -420,8 +447,93 @@ class createGrepoWindow {
 
 // Module: antiRage.js
 class AntiRage extends ModernUtils {
-    constructor() { super(); }
-    render() { return this.getTitleElement('Anti Rage').$container; }
+    GOODS_ICONS = {
+        athena: 'js-power-icon.animated_power_icon.animated_power_icon_45x45.power_icon45x45.power.strength_of_heroes',
+        zeus: 'js-power-icon.animated_power_icon.animated_power_icon_45x45.power_icon45x45.power.fair_wind',
+        artemis: 'js-power-icon.animated_power_icon.animated_power_icon_45x45.power_icon45x45.power.effort_of_the_huntress',
+    };
+
+    constructor() {
+        super();
+        this.loopFunct = null;
+        this.activeGodEl = null;
+        this.commandId = null;
+
+        GameApi.hookWindowCreateForCommandId(id => { this.commandId = id; });
+
+        GameApi.onWindowOpen((e, data) => {
+            if (data.context !== 'atk_command') return;
+            let max = 10;
+            const addSpell = () => {
+                const spellMenu = $('#command_info-god')[0];
+                if (!spellMenu) { if (max > 0) { max--; setTimeout(addSpell, 50); } return; }
+                $(spellMenu).on('click', () => this.trigger());
+                this.commandId = this.commandId;
+            };
+            setTimeout(addSpell, 50);
+        });
+    }
+
+    render() {
+        const title = this.getTitleElement('Anti Rage');
+        const $body = $('<div>').css({ padding: '8px' });
+        $body.html('<p>Detects attack command window, highlights gods, auto-casts anti-rage spells.</p>'
+            + '<p>Select a god in the attack window to activate auto-casting.</p>');
+        title.$container.append($body);
+        return title.$container;
+    }
+
+    trigger() {
+        setTimeout(() => {
+            this.handleGod('athena');
+            this.handleGod('zeus');
+            this.handleGod('artemis');
+        }, 100);
+    }
+
+    handleGod(god) {
+        const godEl = $(`.god_mini.${god}.${god}`).eq(0);
+        if (!godEl.length) return;
+        const powerClass = this.GOODS_ICONS[god];
+        godEl.css({ zIndex: 10, cursor: 'pointer', borderRadius: '100%', outline: 'none',
+                    boxShadow: '0px 0px 10px 5px rgba(255, 215, 0, 0.5)' });
+        const powerEl = $(`.${powerClass}`).eq(0);
+        if (!powerEl.length) return;
+        godEl.click(() => {
+            if (this.activeGodEl && this.activeGodEl.get(0) === godEl.get(0)) {
+                clearInterval(this.loopFunct); this.loopFunct = null;
+                this.setColor(this.activeGodEl.get(0), false); this.activeGodEl = null; return;
+            }
+            if (this.activeGodEl && this.activeGodEl.get(0) !== godEl.get(0)) {
+                clearInterval(this.loopFunct); this.setColor(this.activeGodEl.get(0), false);
+            }
+            this.loopFunct = setInterval(() => this.clicker(powerEl), 1000);
+            this.activeGodEl = godEl; this.setColor(godEl.get(0), true);
+        });
+    }
+
+    setColor(elm, apply) {
+        if (!elm) return;
+        elm.style.filter = apply ? 'brightness(100%) sepia(100%) hue-rotate(90deg) saturate(1500%) contrast(0.8)' : '';
+    }
+
+    clicker(el) {
+        const check = $('.js-power-icon.animated_power_icon.animated_power_icon_45x45.power_icon45x45.power').eq(0);
+        if (!check.length) { clearInterval(this.loopFunct); this.loopFunct = null; this.activeGodEl = null; return; }
+        el.click();
+        const delta = 500;
+        const rand = 500 + Math.floor(Math.random() * delta);
+        clearInterval(this.loopFunct);
+        this.loopFunct = setInterval(() => this.clicker(el), rand);
+    }
+
+    cast(id, type) {
+        GameApi.ajaxPost('frontend_bridge', 'execute', {
+            model_url: 'Commands',
+            action_name: 'cast',
+            arguments: { id, power_id: type },
+        }, () => {});
+    }
 }
 
 
@@ -578,6 +690,247 @@ class AutoBootcamp extends ModernUtils {
             action_name: 'stashReward',
             arguments: {},
         }, () => {}, () => this._useReward());
+    }
+}
+
+
+// Module: autoBuild.js
+class AutoBuild extends ModernUtils {
+    constructor() {
+        super();
+        this.townsBuildings = this.loadSettings('buildings', {});
+        this.active = this.loadSettings('ab_active', false);
+
+        GameApi.onWindowOpen((e, handler) => {
+            if (handler?.context !== 'building_senate') return;
+            this._updateSenate(handler);
+        });
+    }
+
+    _updateSenate(handler) {
+        handler.wnd.setWidth?.(850);
+        const id = `gpwnd_${handler.wnd.getID?.()}`;
+        const updateView = () => {
+            const iv = setInterval(() => {
+                const $window = $('#' + id);
+                const $mainTasks = $window.find('#main_tasks');
+                if (!$mainTasks.length) return;
+                $mainTasks.hide();
+                const $new = $('<div>').append('<p style="padding:10px">AutoBuild active. Set levels in ModernBot tab.</p>');
+                $new.css({ position: $mainTasks.css('position'), left: parseInt($mainTasks.css('left')) - 20, top: $mainTasks.css('top') });
+                $mainTasks.after($new);
+                const $tree = $window.find('#techtree');
+                $tree.css({ position: 'relative', left: '40px' });
+                $window.css({ overflowY: 'visible' });
+                clearInterval(iv);
+            }, 10);
+            setTimeout(() => clearInterval(iv), 100);
+        };
+        const oldContent = handler.wnd.setContent2;
+        handler.wnd.setContent2 = (...args) => { updateView(); oldContent?.(...args); };
+    }
+
+    render() {
+        const { $container, $title } = this.getTitleElement('Auto Build');
+        this.$container = $container;
+        this.$title = $title;
+        this.$title.click(() => this.toggle());
+        if (this.active) this.$title.addClass('active');
+
+        const town = GameApi.getCurrentTown();
+        if (!town) return $container;
+
+        const townId = String(town.id);
+        const isActive = townId in this.townsBuildings;
+
+        const $info = $('<div>').css({ padding: '5px' }).html(
+            `<b>${town.getName()}</b> [${town.getPoints()} pts]<br>` +
+            `Click title to ${isActive ? 'remove' : 'add'} this town to auto-build.`
+        );
+        $container.append($info);
+
+        if (isActive) {
+            const $buildings = $('<div>').css({ padding: '5px' });
+            const target = this.townsBuildings[townId] || {};
+            const bld = GameApi.getBuildings(townId);
+            const names = ['main', 'storage', 'farm', 'academy', 'temple', 'barracks', 'docks', 'market', 'hide', 'lumber', 'stoner', 'ironer', 'wall'];
+            for (const name of names) {
+                const cur = bld[name] || 0;
+                const tgt = target[name] || 0;
+                const diff = tgt - cur;
+                const color = diff > 0 ? '#ff8' : diff < 0 ? '#f88' : '#8f8';
+
+                const $row = $('<div>').css({ display: 'flex', alignItems: 'center', margin: '1px 0', fontSize: '11px' });
+
+                $row.append($('<span>').css({ width: '80px' }).text(name));
+                $row.append($('<span>').css({ width: '30px', textAlign: 'center', cursor: 'pointer' }).text('−').click(e => { e.stopPropagation(); this._editLevel(town.id, name, -1, e.shiftKey); }));
+                $row.append($('<span>').css({ width: '40px', textAlign: 'center', color }).text(`${cur}→${tgt}`));
+                $row.append($('<span>').css({ width: '30px', textAlign: 'center', cursor: 'pointer' }).text('+').click(e => { e.stopPropagation(); this._editLevel(town.id, name, 1, e.shiftKey); }));
+                $row.append($('<span>').css({ width: '30px', textAlign: 'center', cursor: 'pointer' }).text('⚡').click(e => { e.stopPropagation(); this._editLevel(town.id, name, 0, false); }));
+
+                $buildings.append($row);
+            }
+            $container.append($buildings);
+        }
+        return $container;
+    }
+
+    _editLevel(townId, name, d, shift) {
+        const townIdStr = String(townId);
+        if (!(townIdStr in this.townsBuildings)) return;
+        const town = GameApi.getTown(townId);
+        if (!town) return;
+        const data = GameApi.getBuildingData(name);
+        if (!data?.max_level) return;
+        const bld = GameApi.getBuildings(townId);
+        const cur = bld[name] || 0;
+        let target = this.townsBuildings[townIdStr];
+
+        if (d) {
+            d = shift ? d * 10 : d;
+            target[name] = Math.min(Math.max(cur + d, data.min_level || 0), data.max_level);
+        } else {
+            if (target[name] === cur) target[name] = Math.min(Math.max(50, data.min_level || 0), data.max_level);
+            else target[name] = cur;
+        }
+        this.townsBuildings[townIdStr] = target;
+        this.saveSettings('buildings', this.townsBuildings);
+    }
+
+    toggle() {
+        const town = GameApi.getCurrentTown();
+        if (!town) return;
+        const townId = String(town.id);
+        if (townId in this.townsBuildings) {
+            delete this.townsBuildings[townId];
+        } else {
+            this.townsBuildings[townId] = {};
+            const bld = GameApi.getBuildings(town.id);
+            const names = ['main', 'storage', 'farm', 'academy', 'temple', 'barracks', 'docks', 'market', 'hide', 'lumber', 'stoner', 'ironer', 'wall'];
+            for (const n of names) {
+                this.townsBuildings[townId][n] = bld[n] || 0;
+            }
+        }
+        this.saveSettings('buildings', this.townsBuildings);
+        this.active = Object.keys(this.townsBuildings).length > 0;
+        this.$title.toggleClass('active', this.active);
+    }
+
+    async execute() {
+        if (!this.active) return false;
+        for (const townId of Object.keys(this.townsBuildings)) {
+            const town = GameApi.getTown(townId);
+            if (!town) { delete this.townsBuildings[townId]; this.saveSettings('buildings', this.townsBuildings); continue; }
+            if (this._isFullQueue(town)) continue;
+            if (this._isDone(town)) { delete this.townsBuildings[townId]; this.saveSettings('buildings', this.townsBuildings); continue; }
+            await this._getNextBuild(townId);
+            return true;
+        }
+        return false;
+    }
+
+    _isFullQueue(town) {
+        const len = town.buildingOrders?.()?.length || 0;
+        const max = GameApi.isAdvisorActive('curator') ? 7 : 2;
+        return len >= max;
+    }
+
+    _isDone(town) {
+        const townId = String(town.id);
+        const bld = GameApi.getBuildings(town.id);
+        const target = this.townsBuildings[townId] || {};
+        for (const build of Object.keys(target)) {
+            if (target[build] !== bld[build]) return false;
+        }
+        return true;
+    }
+
+    async _postBuild(type, townId) {
+        const town = GameApi.getTown(townId);
+        if (!town) return;
+        const res = GameApi.getResources(townId);
+        if (!res) return;
+        const bdd = GameApi.getBuildingBuildData(townId);
+        if (!bdd?.[type]) return;
+        const { resources_for, population_for } = bdd[type];
+        if ((town.getAvailablePopulation?.() || 0) < population_for) return;
+        const m = 20;
+        if (res.wood < (resources_for.wood || 0) + m || res.stone < (resources_for.stone || 0) + m || res.iron < (resources_for.iron || 0) + m) return;
+        GameApi.ajaxPost('frontend_bridge', 'execute', { model_url: 'BuildingOrder', action_name: 'buildUp', arguments: { building_id: type }, town_id: townId }, () => {});
+        await this.sleep(1234);
+    }
+
+    async _postTearDown(type, townId) {
+        GameApi.ajaxPost('frontend_bridge', 'execute', { model_url: 'BuildingOrder', action_name: 'tearDown', arguments: { building_id: type }, town_id: townId }, () => {});
+        await this.sleep(1234);
+    }
+
+    async _getNextBuild(townId) {
+        const town = GameApi.getTown(townId);
+        if (!town) return;
+        const bld = { ...(GameApi.getBuildings(townId) || {}) };
+        const orders = town.buildingOrders?.()?.models || [];
+        for (const o of orders) {
+            if (o.attributes.tear_down) bld[o.attributes.building_type] = (bld[o.attributes.building_type] || 0) - 1;
+            else bld[o.attributes.building_type] = (bld[o.attributes.building_type] || 0) + 1;
+        }
+        const target = this.townsBuildings[String(townId)] || {};
+
+        const check = async (build, level) => {
+            if (Array.isArray(build)) { build.sort(() => Math.random() - 0.5); for (const el of build) { if (await check(el, level)) return true; } return false; }
+            if ((target[build] || 0) <= (bld[build] || 0)) return false;
+            if ((bld[build] || 0) < level) { await this._postBuild(build, townId); return true; }
+            return false;
+        };
+        const tearCheck = async build => {
+            if (Array.isArray(build)) { build.sort(() => Math.random() - 0.5); for (const el of build) { if (await tearCheck(el)) return true; } return false; }
+            if ((target[build] || 0) < (bld[build] || 0)) { await this._postTearDown(build, townId); return true; }
+            return false;
+        };
+
+        // EXACT V1 SEQUENCE — DO NOT MODIFY
+        if ((bld['docks'] || 0) < 1) {
+            if (await check('lumber', 3)) return;
+            if (await check('stoner', 3)) return;
+            if (await check('farm', 4)) return;
+            if (await check('ironer', 3)) return;
+            if (await check('storage', 4)) return;
+            if (await check('temple', 3)) return;
+            if (await check('main', 5)) return;
+            if (await check('barracks', 5)) return;
+            if (await check('storage', 5)) return;
+            if (await check('stoner', 6)) return;
+            if (await check('lumber', 6)) return;
+            if (await check('ironer', 6)) return;
+            if (await check('main', 8)) return;
+            if (await check('farm', 8)) return;
+            if (await check('market', 6)) return;
+            if (await check('storage', 8)) return;
+            if (await check('academy', 7)) return;
+            if (await check('temple', 5)) return;
+            if (await check('farm', 12)) return;
+            if (await check('main', 15)) return;
+            if (await check('storage', 12)) return;
+            if (await check('main', 25)) return;
+            if (await check('hide', 10)) return;
+        }
+        if (await check('farm', 15)) return;
+        if (await check(['storage', 'main'], 25)) return;
+        if (await check('market', 4)) return;
+        if (await check('hide', 10)) return;
+        if (await check(['lumber', 'stoner', 'ironer'], 15)) return;
+        if (await check(['academy', 'farm'], 36)) return;
+        if (await check(['docks', 'barracks'], 10)) return;
+        if (await check('wall', 25)) return;
+        if (await check(['docks', 'barracks', 'market'], 20)) return;
+        if (await check('farm', 45)) return;
+        if (await check(['docks', 'barracks', 'market'], 30)) return;
+        if (await check(['lumber', 'stoner', 'ironer'], 40)) return;
+        if (await check('temple', 30)) return;
+        if (await check('storage', 35)) return;
+        const lista = ['lumber', 'stoner', 'ironer', 'docks', 'barracks', 'market', 'temple', 'academy', 'farm', 'hide', 'storage', 'wall'];
+        if (await tearCheck(lista)) return;
+        if (await tearCheck('main')) return;
     }
 }
 
@@ -1416,6 +1769,267 @@ class AutoTrade extends ModernUtils {
 }
 
 
+// Module: autoTrain.js
+class AutoTrain extends ModernUtils {
+    POWER_LIST = ['call_of_the_ocean', 'spartan_training', 'fertility_improvement'];
+    GROUND_ORDER = ['catapult', 'sword', 'archer', 'hoplite', 'slinger', 'rider', 'chariot'];
+    NAVAL_ORDER = ['small_transporter', 'bireme', 'trireme', 'attack_ship', 'big_transporter', 'demolition_ship', 'colonize_ship'];
+    MAX_BATCH = 25;
+    SHIFT_LEVELS = {
+        catapult: [5, 5], sword: [200, 50], archer: [200, 50], hoplite: [200, 50], slinger: [200, 50],
+        rider: [100, 25], chariot: [100, 25], small_transporter: [10, 5], bireme: [50, 10], trireme: [50, 10],
+        attack_ship: [50, 10], big_transporter: [50, 10], demolition_ship: [50, 10], colonize_ship: [5, 1],
+    };
+    REQUIREMENTS = {
+        slinger: { research: 'slinger' }, archer: { research: 'archer' },
+        rider: { research: 'rider' }, chariot: { research: 'chariot' },
+        catapult: { research: 'catapult' }, hoplite: { research: 'hoplite' },
+        bireme: { research: 'bireme' }, trireme: { research: 'trireme' },
+        attack_ship: { research: 'attack_ship' }, big_transporter: { research: 'big_transporter' },
+        demolition_ship: { research: 'demolition_ship' }, colonize_ship: { research: 'colonize_ship' },
+    };
+
+    constructor() {
+        super();
+        this.spell = this.loadSettings('at_spell', false);
+        this.percentual = this.loadSettings('at_per', 1);
+        this.cityTroops = this.loadSettings('troops', {});
+        this.active = this.loadSettings('at_active', false);
+        this._nextOffset = {};
+    }
+
+    render() {
+        const { $container, $title } = this.getTitleElement('Auto Train');
+        this.$container = $container;
+        this.$title = $title;
+        this.$title.click(() => this.toggle());
+        if (this.active) this.$title.addClass('active');
+
+        const town = GameApi.getCurrentTown();
+        if (!town) return $container;
+
+        const townId = town.id;
+
+        const $spell = this.getButtonElement(this.spell ? 'Spell ON' : 'Spell OFF');
+        $spell.click(() => { this.spell = !this.spell; this.saveSettings('at_spell', this.spell); });
+        $container.append($spell);
+
+        $container.append(this._renderTroopList(town, townId));
+        return $container;
+    }
+
+    _renderTroopList(town, townId) {
+        const $box = $('<div>').css({ padding: '5px' });
+        const troops = this.cityTroops[townId] || {};
+        const bld = GameApi.getBuildings(townId);
+        const res = town.getResearches?.()?.attributes || {};
+
+        const allUnits = [...this.NAVAL_ORDER, ...this.GROUND_ORDER];
+        for (const unit of allUnits) {
+            const pop = GameApi.getUnitData(unit)?.population || 1;
+            const gray = this._isGray(unit, bld, res);
+            const current = troops[unit] || 0;
+
+            const $row = $('<div>').css({ display: 'flex', alignItems: 'center', margin: '2px 0' });
+
+            const $name = $('<span>').css({ width: '130px', opacity: gray ? .4 : 1 }).text(unit);
+            $row.append($name);
+
+            const $minus = $('<div>').css({ cursor: 'pointer', width: '16px', textAlign: 'center' }).text('◀');
+            $minus.click((e) => { e.stopPropagation(); this.editTroopCount(townId, unit, -1, e.shiftKey); });
+            $row.append($minus);
+
+            const $val = $('<span>').css({ width: '50px', textAlign: 'center' }).text(current);
+            $row.append($val);
+
+            const $plus = $('<div>').css({ cursor: 'pointer', width: '16px', textAlign: 'center' }).text('▶');
+            $plus.click((e) => { e.stopPropagation(); this.editTroopCount(townId, unit, 1, e.shiftKey); });
+            $row.append($plus);
+
+            $row.append($('<span>').css({ marginLeft: '8px', fontSize: '10px', opacity: .7 }).text(`pop: ${pop}`));
+            $box.append($row);
+        }
+        return $box;
+    }
+
+    _isGray(unit, bld, res) {
+        const req = this.REQUIREMENTS[unit];
+        if (!req) return false;
+        if (req.research && !res[req.research]) return true;
+        if (req.building && (bld[req.building] || 0) < (req.level || 1)) return true;
+        return false;
+    }
+
+    getTotalPopulation(townId) {
+        const town = GameApi.getTown(townId);
+        if (!town) return 0;
+        const data = uw.GameData?.units || {};
+        const orders = town.getUnitOrdersCollection?.()?.models || [];
+        let used = 0;
+        for (const o of orders) {
+            const ud = data[o.attributes.unit_type];
+            if (ud) used += ud.population * (o.attributes.units_left / o.attributes.count) * o.attributes.count;
+        }
+        const units = town.units?.() || {};
+        for (const u of Object.keys(units)) {
+            if (data[u]) used += data[u].population * units[u];
+        }
+        const outer = town.unitsOuter?.() || {};
+        for (const u of Object.keys(outer)) {
+            if (data[u]) used += data[u].population * outer[u];
+        }
+        return (town.getAvailablePopulation?.() || 0) + used;
+    }
+
+    countPopulation(targets) {
+        let p = 0;
+        for (const unit of Object.keys(targets || {})) {
+            const ud = GameApi.getUnitData(unit);
+            if (ud) p += ud.population * targets[unit];
+        }
+        return p;
+    }
+
+    editTroopCount(townId, unit, count, shiftHeld) {
+        const cityTroops = this.cityTroops;
+        if (!cityTroops[townId]) cityTroops[townId] = {};
+        if (count) {
+            const index = count > 0 ? 0 : 1;
+            count = shiftHeld ? count * this.SHIFT_LEVELS[unit][index] : count;
+        } else { count = 10000; }
+        const totalPop = this.getTotalPopulation(townId);
+        const usedPop = this.countPopulation(cityTroops[townId]);
+        const unitData = GameApi.getUnitData(unit);
+        if (!unitData) return;
+        const unitPop = unitData.population;
+        if (totalPop - usedPop < unitPop * count) count = parseInt((totalPop - usedPop) / unitPop);
+        if (unit in cityTroops[townId]) cityTroops[townId][unit] += count;
+        else cityTroops[townId][unit] = count;
+        if (cityTroops[townId][unit] <= 0) delete cityTroops[townId][unit];
+        if ($.isEmptyObject(cityTroops[townId])) delete this.cityTroops[townId];
+        this.saveSettings('troops', this.cityTroops);
+    }
+
+    toggle() {
+        this.active = !this.active;
+        this.saveSettings('at_active', this.active);
+        this.$title.toggleClass('active');
+    }
+
+    getUnitOrdersCount(type, townId) {
+        const town = GameApi.getTown(townId);
+        if (!town) return 0;
+        const col = town.getUnitOrdersCollection?.();
+        if (!col) return 0;
+        return col.where?.({ kind: type })?.length || 0;
+    }
+
+    getNextInList(unitType, townId) {
+        const troops = this.cityTroops[townId];
+        if (!troops) return null;
+        const order = unitType === 'naval' ? this.NAVAL_ORDER : this.GROUND_ORDER;
+        const key = `${townId}_${unitType}`;
+        const start = this._nextOffset?.[key] || 0;
+        for (let i = 0; i < order.length; i++) {
+            const idx = (start + i) % order.length;
+            const unit = order[idx];
+            if (troops[unit] && this.getTroopCount(unit, townId) !== 0) {
+                if (!this._nextOffset) this._nextOffset = {};
+                this._nextOffset[key] = (idx + 1) % order.length;
+                return unit;
+            }
+        }
+        return null;
+    }
+
+    getTroopCount(troop, townId) {
+        const town = GameApi.getTown(townId);
+        if (!town || !this.cityTroops[townId] || !this.cityTroops[townId][troop]) return 0;
+        let count = this.cityTroops[townId][troop];
+        const orders = town.getUnitOrdersCollection?.()?.models || [];
+        for (const o of orders) {
+            if (o.attributes.unit_type === troop) count -= o.attributes.count;
+        }
+        const townUnits = town.units?.() || {};
+        if (troop in townUnits) count -= townUnits[troop];
+        const outer = town.unitsOuter?.() || {};
+        if (troop in outer) count -= outer[troop];
+        if (count < 0) return 0;
+        const res = town.resources?.() || {};
+        const unitData = GameApi.getUnitData(troop);
+        if (!unitData) return 0;
+        const discount = GameApi.unitDiscount(townId, unitData);
+        const { wood, stone, iron } = unitData.resources || { wood: 0, stone: 0, iron: 0 };
+        const w = (res.wood || 0) / Math.max(1, Math.round(wood * discount));
+        const s = (res.stone || 0) / Math.max(1, Math.round(stone * discount));
+        const i = (res.iron || 0) / Math.max(1, Math.round(iron * discount));
+        const current = parseInt(Math.min(w, s, i));
+        const duablePop = parseInt((res.population || 0) / unitData.population);
+        const wMax = (res.storage || 1) / Math.max(1, wood * discount);
+        const sMax = (res.storage || 1) / Math.max(1, stone * discount);
+        const iMax = (res.storage || 1) / Math.max(1, iron * discount);
+        let max = parseInt(Math.min(wMax, sMax, iMax) * this.percentual);
+        max = max > duablePop ? duablePop : max;
+        if (count <= 0) return 0;
+        const affordable = Math.min(count, current, max, duablePop);
+        if (affordable < this.MAX_BATCH) return -1;
+        return Math.min(affordable, this.MAX_BATCH);
+    }
+
+    checkPolis(type, townId) {
+        if (this.getUnitOrdersCount(type, townId) > 6) return false;
+        let count = 1;
+        while (count >= 0) {
+            const next = this.getNextInList(type, townId);
+            if (!next) return false;
+            count = this.getTroopCount(next, townId);
+            if (count < 0) return false;
+            if (count === 0) continue;
+            this.buildPost(townId, next, count);
+            return true;
+        }
+        return false;
+    }
+
+    getPowerActive() {
+        const fragments = GameApi.getCastedPowers();
+        const list = [];
+        for (const townId in this.cityTroops) {
+            const models = fragments[townId]?.models;
+            if (!models) continue;
+            for (const p of models) {
+                if (this.POWER_LIST.includes(p.attributes.power_id)) { list.push(townId); break; }
+            }
+        }
+        return list;
+    }
+
+    buildPost(townId, unit, count) {
+        GameApi.ajaxPost('building_barracks', 'build', { unit_id: unit, amount: count, town_id: townId }, () => {});
+    }
+
+    getActiveList() {
+        if (!this.spell) return Object.keys(this.cityTroops);
+        return this.getPowerActive();
+    }
+
+    async execute() {
+        if (!this.active) return false;
+        const townList = this.getActiveList();
+        for (const townId of townList) {
+            if (!(townId in (uw.ITowns.towns || {}))) {
+                delete this.cityTroops[townId];
+                this.saveSettings('troops', this.cityTroops);
+                continue;
+            }
+            if (this.checkPolis('naval', townId)) return true;
+            if (this.checkPolis('ground', townId)) return true;
+        }
+        return false;
+    }
+}
+
+
 // Module: autoUnitBuilder.js
 class AutoUnitBuilder extends ModernUtils {
     GROUND_ORDER = ['catapult', 'sword', 'archer', 'hoplite', 'slinger', 'rider', 'chariot'];
@@ -1795,6 +2409,9 @@ class ModernBot {
         this.autoBootcamp = new AutoBootcamp();
         this.autoRuralLevel = new AutoRuralLevel();
         this.autoParty = new AutoParty();
+        this.autoTrain = new AutoTrain();
+        this.autoBuild = new AutoBuild();
+        this.antiRage = new AntiRage();
 
         new ModernMenu([
             {
@@ -1841,6 +2458,21 @@ class ModernBot {
                 title: 'Party',
                 id: 'party',
                 render: () => this.autoParty.render(),
+            },
+            {
+                title: 'Build',
+                id: 'build',
+                render: () => this.autoBuild.render(),
+            },
+            {
+                title: 'Train',
+                id: 'train',
+                render: () => this.autoTrain.render(),
+            },
+            {
+                title: 'Anti Rage',
+                id: 'anti_rage',
+                render: () => this.antiRage.render(),
             },
         ]);
 
@@ -1891,6 +2523,8 @@ class ModernBot {
         if (await this.autoBootcamp.execute()) { this._scheduleNext(); return; }
         if (await this.autoRuralLevel.execute()) { this._scheduleNext(); return; }
         if (await this.autoParty.execute()) { this._scheduleNext(); return; }
+        if (await this.autoBuild.execute()) { this._scheduleNext(); return; }
+        if (await this.autoTrain.execute()) { this._scheduleNext(); return; }
 
         this.loopActive = false;
     }

@@ -25,6 +25,9 @@ class ModernBot {
         this.autoBootcamp = new AutoBootcamp();
         this.autoRuralLevel = new AutoRuralLevel();
         this.autoParty = new AutoParty();
+        this.autoTrain = new AutoTrain();
+        this.autoBuild = new AutoBuild();
+        this.antiRage = new AntiRage();
 
         new ModernMenu([
             {
@@ -71,6 +74,21 @@ class ModernBot {
                 title: 'Party',
                 id: 'party',
                 render: () => this.autoParty.render(),
+            },
+            {
+                title: 'Build',
+                id: 'build',
+                render: () => this.autoBuild.render(),
+            },
+            {
+                title: 'Train',
+                id: 'train',
+                render: () => this.autoTrain.render(),
+            },
+            {
+                title: 'Anti Rage',
+                id: 'anti_rage',
+                render: () => this.antiRage.render(),
             },
         ]);
 
@@ -121,6 +139,8 @@ class ModernBot {
         if (await this.autoBootcamp.execute()) { this._scheduleNext(); return; }
         if (await this.autoRuralLevel.execute()) { this._scheduleNext(); return; }
         if (await this.autoParty.execute()) { this._scheduleNext(); return; }
+        if (await this.autoBuild.execute()) { this._scheduleNext(); return; }
+        if (await this.autoTrain.execute()) { this._scheduleNext(); return; }
 
         this.loopActive = false;
     }

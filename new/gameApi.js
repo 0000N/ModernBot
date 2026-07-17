@@ -133,10 +133,37 @@ class GameApi {
             () => uw.MM.getModelByNameAndPlayerId(name), null);
     }
 
+    /* --- Buildings data --- */
+    static getBuildingData(name) {
+        return GameApi._safe('getBuildingData', () => uw.GameData?.buildings?.[name], null);
+    }
+    static getBuildingBuildData(townId) {
+        return GameApi._safe('getBuildingBuildData',
+            () => uw.MM?.getModels?.()?.BuildingBuildData?.[townId]?.attributes?.building_data, null);
+    }
+    static getCastedPowers() {
+        return GameApi._safe('getCastedPowers',
+            () => uw.MM?.getFirstTownAgnosticCollectionByName?.('CastedPowers')?.fragments, {});
+    }
+    static unitDiscount(townId, unitData) {
+        return GameApi._safe('unitDiscount',
+            () => uw.GeneralModifications?.getUnitBuildResourcesModification?.(townId, unitData) || 1, 1);
+    }
+
     /* --- Ajax with error handler --- */
     static ajaxPostWithHandlers(controller, action, data, onSuccess, onError) {
         return GameApi._safe('ajaxPostHandlers',
             () => uw.gpAjax.ajaxPost(controller, action, data, false, onSuccess, onError), null);
+    }
+    /* --- Monkey-patch for attack command ID --- */
+    static hookWindowCreateForCommandId(setId) {
+        const mgr = uw.GPWindowMgr;
+        if (mgr._modernOrigCreate) return;
+        mgr._modernOrigCreate = mgr.Create;
+        mgr.Create = function (type, title, params, id) {
+            if (type === mgr.TYPE_ATK_COMMAND && id) setId(id);
+            return mgr._modernOrigCreate.apply(this, arguments);
+        };
     }
 
     /* --- Collections --- */

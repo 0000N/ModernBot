@@ -9,7 +9,7 @@ class ModernMenu {
         this.settingsFactory = new createGrepoWindow({
             id: 'MODERN_BOT',
             title: 'ModernBot',
-            size: [845, 300],
+            size: [900, 500],
             tabs: tabs,
             start_tab: 0,
         });
@@ -24,7 +24,7 @@ class ModernMenu {
 
         const $circle_button = $('<div class="circle_button modern_bot_settings"></div>');
         $circle_button.click(() => { this.settingsFactory.openWindow() });
-        const $icon = $('<div style="width: 27px; height: 27px; background: url(https://raw.githubusercontent.com/Sau1707/ModernBot/main/img/gear.png) no-repeat 6px 5px" class="icon js-caption"></div>');
+            const $icon = $('<div style="width: 27px; height: 27px; background: url(https://raw.githubusercontent.com/0000N/ModernBot/main/img/gear.png) no-repeat 6px 5px" class="icon js-caption"></div>');
         $icon.attr("id", "modern_settings");
 
         $circle_button.append($icon);

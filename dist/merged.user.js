@@ -3752,6 +3752,168 @@ class AutoUnitBuilder extends ModernUtil {
         return c;
     }
 }
+class AutoResource extends ModernUtil {
+    constructor(c, s) {
+        super(c, s);
+        this.targetTown = this.storage.load('ar_target', null);
+        this.enabled = this.storage.load('ar_active', false);
+        this.fillPercent = this.storage.load('ar_fill', 90);
+        this.resendPercent = this.storage.load('ar_resend', 50);
+        this.reserve = this.storage.load('ar_reserve', { wood: 10000, stone: 10000, iron: 10000 });
+        this.interval = null;
+
+        if (this.enabled) this.start();
+    }
+
+    start = () => {
+        if (this.interval) clearInterval(this.interval);
+        this.interval = setInterval(this.main.bind(this), 30000);
+    };
+
+    stop = () => {
+        clearInterval(this.interval);
+        this.interval = null;
+    };
+
+    settings = () => {
+        const town = uw.ITowns.getCurrentTown();
+        const currentTarget = this.targetTown ? uw.ITowns.towns[this.targetTown] : null;
+        const targetLabel = currentTarget ? currentTarget.getName() : 'none';
+        const filter = this.enabled ? 'brightness(100%) saturate(186%) hue-rotate(241deg)' : '';
+        const towns = Object.entries(uw.ITowns.towns || {});
+
+        return `
+        <div class="game_border" style="margin-bottom:20px">
+            <div class="game_border_top"></div><div class="game_border_bottom"></div>
+            <div class="game_border_left"></div><div class="game_border_right"></div>
+            <div class="game_border_corner corner1"></div><div class="game_border_corner corner2"></div>
+            <div class="game_border_corner corner3"></div><div class="game_border_corner corner4"></div>
+            <div style="cursor:pointer;filter:${filter}" class="game_header bold" onclick="window.modernBot.autoResource.toggle()">
+                Auto Resource <span class="command_count"></span>
+                <div style="float:right;margin-right:8px;font-size:10px;">(click to toggle)</div>
+            </div>
+            <div style="padding:5px;font-weight:600">
+                <div style="margin-bottom:4px">
+                    Target: <b>${targetLabel}</b> (${currentTarget ? currentTarget.getPoints() + ' pts' : 'not set'})
+                </div>
+                <div style="margin-bottom:4px;font-size:11px;font-weight:normal">
+                    Fill when below <b>${this.resendPercent}%</b> storage → stop at <b>${this.fillPercent}%</b>
+                </div>
+                <div style="margin-bottom:4px;font-size:11px;font-weight:normal">
+                    Reserve per city: ${this.reserve.wood}w / ${this.reserve.stone}s / ${this.reserve.iron}i
+                </div>
+                <div style="display:flex;flex-wrap:wrap;gap:3px;margin-top:4px">
+                    ${towns.map(([id, t]) => {
+                        const isTarget = id == this.targetTown;
+                        const isCurrent = id == town.id;
+                        const label = `${isCurrent ? '📍' : ''} ${t.getName()} [${t.getPoints()}]`;
+                        return `<div style="cursor:pointer;padding:2px 5px;border-radius:3px;font-size:10px;
+                            ${isTarget ? 'background:#ffbb33;color:#000' : 'background:rgba(255,255,255,.1);color:#ccc'}"
+                            onclick="event.stopPropagation();window.modernBot.autoResource.setTarget(${id})">
+                            ${label}${isTarget ? ' ⭐' : ''}</div>`;
+                    }).join('')}
+                </div>
+                <div id="ar_info" style="margin-top:4px;font-size:10px;font-weight:normal"></div>
+            </div>
+        </div>`;
+    };
+
+    toggle = () => {
+        this.enabled = !this.enabled;
+        this.storage.save('ar_active', this.enabled);
+        if (this.enabled) this.start();
+        else this.stop();
+    };
+
+    setTarget = townId => {
+        this.targetTown = townId;
+        this.storage.save('ar_target', townId);
+    };
+
+    main = async () => {
+        if (!this.enabled || !this.targetTown) return;
+        if ($('.botcheck').length || $('#recaptcha_window').length) return;
+
+        const target = uw.ITowns.towns[this.targetTown];
+        if (!target) return;
+
+        const targetRes = target.resources();
+        const targetStorage = targetRes.storage;
+        const fillLevel = this.fillPercent / 100;
+        const resendLevel = this.resendPercent / 100;
+        const fillCap = Math.floor(targetStorage * fillLevel);
+        const resendCap = Math.floor(targetStorage * resendLevel);
+
+        // Check if target needs resources
+        const targetWood = targetRes.wood || 0;
+        const targetStone = targetRes.stone || 0;
+        const targetIron = targetRes.iron || 0;
+
+        if (targetWood >= resendCap && targetStone >= resendCap && targetIron >= resendCap) {
+            this.updateInfo(`Target storage OK (${targetWood}/${fillCap}w)`);
+            return; // Don't send, storage is above resend threshold
+        }
+
+        // Calculate needed resources
+        const needWood = Math.max(0, fillCap - targetWood);
+        const needStone = Math.max(0, fillCap - targetStone);
+        const needIron = Math.max(0, fillCap - targetIron);
+
+        if (needWood <= 0 && needStone <= 0 && needIron <= 0) {
+            this.updateInfo('Storage full');
+            return;
+        }
+
+        // Send from all cities except target
+        let sent = false;
+        for (const [cityId, city] of Object.entries(uw.ITowns.towns || {})) {
+            if (cityId == this.targetTown) continue;
+            if (city.getAvailableTradeCapacity() < 500) continue;
+
+            const res = city.resources();
+            const spareWood = Math.max(0, (res.wood || 0) - this.reserve.wood);
+            const spareStone = Math.max(0, (res.stone || 0) - this.reserve.stone);
+            const spareIron = Math.max(0, (res.iron || 0) - this.reserve.iron);
+
+            if (spareWood <= 0 && spareStone <= 0 && spareIron <= 0) continue;
+
+            // Send what we have spare, limited by what target needs
+            const sendWood = Math.min(spareWood, needWood);
+            const sendStone = Math.min(spareStone, needStone);
+            const sendIron = Math.min(spareIron, needIron);
+
+            if (sendWood <= 0 && sendStone <= 0 && sendIron <= 0) continue;
+
+            const data = {
+                id: this.targetTown,
+                wood: sendWood,
+                stone: sendStone,
+                iron: sendIron,
+                town_id: cityId,
+                nl_init: true,
+            };
+
+            uw.gpAjax.ajaxPost('town_info', 'trade', data, false, () => {});
+            this.console.log(`Sent ${sendWood}w/${sendStone}s/${sendIron}i from ${city.getName()} to ${target.getName()}`);
+            sent = true;
+            await this.sleep(500);
+            break; // One trade per cycle
+        }
+
+        if (sent) {
+            this.updateInfo('Sent resources');
+        } else {
+            this.updateInfo('No city has spare resources');
+        }
+    };
+
+    updateInfo = msg => {
+        const el = document.getElementById('ar_info');
+        if (el) el.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+    };
+
+    sleep = ms => new Promise(r => setTimeout(r, ms));
+}
 // About & version check
 class About {
     constructor() {
@@ -3820,6 +3982,7 @@ class ModernBot {
         this.antiRage = new AntiRage(this.console, this.storage);
         this.autoTrade = new AutoTrade(this.console, this.storage);
         this.autoUnitBuilder = new AutoUnitBuilder(this.console, this.storage);
+        this.autoResource = new AutoResource(this.console, this.storage);
 
         this.settingsFactory = new createGrepoWindow({
             id: 'MODERN_BOT',
@@ -3840,12 +4003,13 @@ class ModernBot {
                     title: 'Train',
                     id: 'train',
                     render: this.settingsTrain,
-                } /*
-				{
-					title: 'Trade',
-					id: 'trade',
-					render: this.settingsTrade,
-				},*/,
+                } */
+                /*,
+                {
+                    title: 'Trade',
+                    id: 'trade',
+                    render: this.settingsTrade,
+                }*/,
                 {
                     title: 'Mix',
                     id: 'mix',
@@ -3855,6 +4019,11 @@ class ModernBot {
                     title: 'Units',
                     id: 'units',
                     render: this.settingsUnits,
+                },
+                {
+                    title: 'Trade',
+                    id: 'trade',
+                    render: this.settingsTrade,
                 },
                 {
                     title: 'Console',
@@ -3902,8 +4071,8 @@ class ModernBot {
     };
 
     settingsTrade = () => {
-        let html = ``;
-        html += this.autoTrade.settings();
+        let html = '';
+        html += this.autoResource.settings();
         return html;
     };
 

@@ -29,6 +29,7 @@ class ModernBot {
         this.antiRage = new AntiRage(this.console, this.storage);
         this.autoTrade = new AutoTrade(this.console, this.storage);
         this.autoUnitBuilder = new AutoUnitBuilder(this.console, this.storage);
+        this.autoResource = new AutoResource(this.console, this.storage);
 
         this.settingsFactory = new createGrepoWindow({
             id: 'MODERN_BOT',
@@ -49,12 +50,13 @@ class ModernBot {
                     title: 'Train',
                     id: 'train',
                     render: this.settingsTrain,
-                } /*
-				{
-					title: 'Trade',
-					id: 'trade',
-					render: this.settingsTrade,
-				},*/,
+                } */
+                /*,
+                {
+                    title: 'Trade',
+                    id: 'trade',
+                    render: this.settingsTrade,
+                }*/,
                 {
                     title: 'Mix',
                     id: 'mix',
@@ -64,6 +66,11 @@ class ModernBot {
                     title: 'Units',
                     id: 'units',
                     render: this.settingsUnits,
+                },
+                {
+                    title: 'Trade',
+                    id: 'trade',
+                    render: this.settingsTrade,
                 },
                 {
                     title: 'Console',
@@ -111,8 +118,8 @@ class ModernBot {
     };
 
     settingsTrade = () => {
-        let html = ``;
-        html += this.autoTrade.settings();
+        let html = '';
+        html += this.autoResource.settings();
         return html;
     };
 

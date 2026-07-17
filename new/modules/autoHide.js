@@ -2,56 +2,59 @@ class AutoHide extends ModernUtils {
     constructor() {
         super();
         this.activeTown = this.loadSettings('autohide_active', 0);
-        this.interval = null;
+
+        setInterval(() => this.main(), 5000);
 
         const addButton = () => {
             const box = $('.order_count');
             if (box.length) {
-                const btn = $('<div/>', {
+                const butt = $('<div/>', {
                     class: 'button_new',
                     id: 'autoCaveButton',
                     style: 'float: right; margin: 0px; left: 169px; position: absolute; top: 56px; width: 66px',
                 });
-                btn.append($('<div>').click(() => this.toggle()));
-                btn.append($('<div>').addClass('left'));
-                btn.append($('<div>').addClass('right'));
-                btn.append($('<div>').addClass('caption js-caption').html('Auto <div class="effect js-effect"></div>'));
-                box.prepend(btn);
+                butt.append($('<div>').click(() => this.toggle()));
+                butt.append($('<div>').addClass('left'));
+                butt.append($('<div>').addClass('right'));
+                butt.append($('<div>').addClass('caption js-caption').html('Auto <div class="effect js-effect"></div>'));
+                box.prepend(butt);
                 this.updateStyle(GameApi.getCurrentTown()?.id);
             } else {
                 setTimeout(addButton, 100);
             }
         };
 
-        /* Wire to game internals — these can't go through GameApi */
-        try {
-            uw.$.Observer(uw.GameEvents.window.open).subscribe((e, i) => {
-                if (i?.attributes?.window_type === 'hide') setTimeout(addButton, 100);
-            });
-            uw.$.Observer(uw.GameEvents.town.town_switch).subscribe(() => {
-                const town = GameApi.getCurrentTown();
-                if (town) this.updateStyle(town.id);
-                setTimeout(addButton, 1);
-            });
-        } catch (e) { /* game observables may not be available */ }
+        GameApi.onWindowOpen((e, data) => {
+            if (!data?.attributes) return;
+            if (data.attributes.window_type !== 'hide') return;
+            setTimeout(addButton, 100);
+        });
 
-        this.interval = setInterval(() => this.main(), 5000);
+        GameApi.onTownSwitch(() => {
+            const town = GameApi.getCurrentTown();
+            if (town) this.updateStyle(town.id);
+            const cave = document.getElementsByClassName('js-window-main-container classic_window hide')[0];
+            if (!cave) return;
+            setTimeout(addButton, 1);
+        });
     }
 
     render() {
         const title = this.getTitleElement('Auto Hide');
         title.$title.css('filter', this.activeTown ? 'brightness(100%) saturate(186%) hue-rotate(241deg)' : '');
         title.$title.click(() => this.toggle());
+        this.$title = title.$title;
+
         const $body = $('<div>').css({ padding: '5px', fontWeight: 600 });
-        $body.text('Check every 5 sec — if iron > 15k, store in hide (lvl 10 required)');
+        $body.text('Check every 5s — stores iron > 15k in hide (lvl 10 required)');
         title.$container.append($body);
         return title.$container;
     }
 
-    toggle() {
-        const town = GameApi.getCurrentTown();
+    toggle(townId) {
+        const town = townId ? GameApi.getTown(townId) : GameApi.getCurrentTown();
         if (!town) return;
-        const hide = town.buildings().attributes.hide;
+        const hide = GameApi.getBuildings(town.id).hide || 0;
         if (this.activeTown === town.id) {
             this.activeTown = 0;
         } else {

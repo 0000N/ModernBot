@@ -113,6 +113,34 @@ class GameApi {
         }, 0);
     }
 
+    /* --- Observables --- */
+    static onWindowOpen(cb) {
+        try { uw.$.Observer(uw.GameEvents.window.open).subscribe(cb); } catch(e) {}
+    }
+    static onTownSwitch(cb) {
+        try { uw.$.Observer(uw.GameEvents.town.town_switch).subscribe(cb); } catch(e) {}
+    }
+
+    /* --- Collections --- */
+    static getCollection(name) {
+        return GameApi._safe('collection_' + name,
+            () => uw.MM.getOnlyCollectionByName(name)?.models || [], []);
+    }
+
+    /* --- Town coordinates --- */
+    static getIslandX(townId) {
+        return GameApi._safe('islandX', () => {
+            const t = GameApi.getTown(townId);
+            return t ? t.getIslandCoordinateX() : 0;
+        }, 0);
+    }
+    static getIslandY(townId) {
+        return GameApi._safe('islandY', () => {
+            const t = GameApi.getTown(townId);
+            return t ? t.getIslandCoordinateY() : 0;
+        }, 0);
+    }
+
     /* --- Bot-blocking detection --- */
     static isCaptchaActive() {
         // Any of these selectors present => a human check is on screen.

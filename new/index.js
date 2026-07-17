@@ -19,6 +19,10 @@ class ModernBot {
         this.autoFarm = new AutoFarm();
         this.autoUnitBuilder = new AutoUnitBuilder();
         this.autoGratis = new AutoGratis();
+        this.autoHide = new AutoHide();
+        this.autoRuralTrade = new AutoRuralTrade();
+        this.autoTrade = new AutoTrade();
+        this.autoBootcamp = new AutoBootcamp();
 
         new ModernMenu([
             {
@@ -35,6 +39,26 @@ class ModernBot {
                 title: 'Gratis',
                 id: 'gratis',
                 render: () => this.autoGratis.render(),
+            },
+            {
+                title: 'Rural Trade',
+                id: 'rural_trade',
+                render: () => this.autoRuralTrade.render(),
+            },
+            {
+                title: 'Trade',
+                id: 'trade',
+                render: () => this.autoTrade.render(),
+            },
+            {
+                title: 'Bootcamp',
+                id: 'bootcamp',
+                render: () => this.autoBootcamp.render(),
+            },
+            {
+                title: 'Hide',
+                id: 'hide',
+                render: () => this.autoHide.render(),
             },
         ]);
 

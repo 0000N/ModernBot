@@ -183,6 +183,34 @@ class GameApi {
         }, 0);
     }
 
+    /* --- Observables --- */
+    static onWindowOpen(cb) {
+        try { uw.$.Observer(uw.GameEvents.window.open).subscribe(cb); } catch(e) {}
+    }
+    static onTownSwitch(cb) {
+        try { uw.$.Observer(uw.GameEvents.town.town_switch).subscribe(cb); } catch(e) {}
+    }
+
+    /* --- Collections --- */
+    static getCollection(name) {
+        return GameApi._safe('collection_' + name,
+            () => uw.MM.getOnlyCollectionByName(name)?.models || [], []);
+    }
+
+    /* --- Town coordinates --- */
+    static getIslandX(townId) {
+        return GameApi._safe('islandX', () => {
+            const t = GameApi.getTown(townId);
+            return t ? t.getIslandCoordinateX() : 0;
+        }, 0);
+    }
+    static getIslandY(townId) {
+        return GameApi._safe('islandY', () => {
+            const t = GameApi.getTown(townId);
+            return t ? t.getIslandCoordinateY() : 0;
+        }, 0);
+    }
+
     /* --- Bot-blocking detection --- */
     static isCaptchaActive() {
         // Any of these selectors present => a human check is on screen.
@@ -711,56 +739,59 @@ class AutoHide extends ModernUtils {
     constructor() {
         super();
         this.activeTown = this.loadSettings('autohide_active', 0);
-        this.interval = null;
+
+        setInterval(() => this.main(), 5000);
 
         const addButton = () => {
             const box = $('.order_count');
             if (box.length) {
-                const btn = $('<div/>', {
+                const butt = $('<div/>', {
                     class: 'button_new',
                     id: 'autoCaveButton',
                     style: 'float: right; margin: 0px; left: 169px; position: absolute; top: 56px; width: 66px',
                 });
-                btn.append($('<div>').click(() => this.toggle()));
-                btn.append($('<div>').addClass('left'));
-                btn.append($('<div>').addClass('right'));
-                btn.append($('<div>').addClass('caption js-caption').html('Auto <div class="effect js-effect"></div>'));
-                box.prepend(btn);
+                butt.append($('<div>').click(() => this.toggle()));
+                butt.append($('<div>').addClass('left'));
+                butt.append($('<div>').addClass('right'));
+                butt.append($('<div>').addClass('caption js-caption').html('Auto <div class="effect js-effect"></div>'));
+                box.prepend(butt);
                 this.updateStyle(GameApi.getCurrentTown()?.id);
             } else {
                 setTimeout(addButton, 100);
             }
         };
 
-        /* Wire to game internals — these can't go through GameApi */
-        try {
-            uw.$.Observer(uw.GameEvents.window.open).subscribe((e, i) => {
-                if (i?.attributes?.window_type === 'hide') setTimeout(addButton, 100);
-            });
-            uw.$.Observer(uw.GameEvents.town.town_switch).subscribe(() => {
-                const town = GameApi.getCurrentTown();
-                if (town) this.updateStyle(town.id);
-                setTimeout(addButton, 1);
-            });
-        } catch (e) { /* game observables may not be available */ }
+        GameApi.onWindowOpen((e, data) => {
+            if (!data?.attributes) return;
+            if (data.attributes.window_type !== 'hide') return;
+            setTimeout(addButton, 100);
+        });
 
-        this.interval = setInterval(() => this.main(), 5000);
+        GameApi.onTownSwitch(() => {
+            const town = GameApi.getCurrentTown();
+            if (town) this.updateStyle(town.id);
+            const cave = document.getElementsByClassName('js-window-main-container classic_window hide')[0];
+            if (!cave) return;
+            setTimeout(addButton, 1);
+        });
     }
 
     render() {
         const title = this.getTitleElement('Auto Hide');
         title.$title.css('filter', this.activeTown ? 'brightness(100%) saturate(186%) hue-rotate(241deg)' : '');
         title.$title.click(() => this.toggle());
+        this.$title = title.$title;
+
         const $body = $('<div>').css({ padding: '5px', fontWeight: 600 });
-        $body.text('Check every 5 sec — if iron > 15k, store in hide (lvl 10 required)');
+        $body.text('Check every 5s — stores iron > 15k in hide (lvl 10 required)');
         title.$container.append($body);
         return title.$container;
     }
 
-    toggle() {
-        const town = GameApi.getCurrentTown();
+    toggle(townId) {
+        const town = townId ? GameApi.getTown(townId) : GameApi.getCurrentTown();
         if (!town) return;
-        const hide = town.buildings().attributes.hide;
+        const hide = GameApi.getBuildings(town.id).hide || 0;
         if (this.activeTown === town.id) {
             this.activeTown = 0;
         } else {
@@ -803,28 +834,28 @@ class AutoRuralTrade extends ModernUtils {
         this.tradeResource = null;
         this.totalTrade = 0;
         this.doneTrade = 0;
-        this.minRuralRatioValues = [0, 0.25, 0.5, 0.75, 1.0, 1.25];
     }
 
     render() {
-        const title = this.getTitleElement('Auto Rural Trade');
+        const title = this.getTitleElement('Auto Trade Resources');
         const $title = title.$title;
+        $title.click(() => this.stop());
 
-        this.$progress = $('<div>').addClass('progress_bar_auto').css({ width: '0%', height: '4px' });
+        this.$progress = $('<div>').addClass('progress_bar_auto').css({ width: '0%', height: '4px', position: 'relative', zIndex: 10 });
         $title.prepend(this.$progress);
 
         const $body = $('<div>').addClass('split_content');
 
-        const $btns = $('<div>').css({ padding: '5px' });
+        const $bts = $('<div>').css({ padding: '5px' });
         ['Iron', 'Stone', 'Wood'].forEach(r => {
             const $b = this.getButtonElement(r);
             $b.click(() => this.start(r.toLowerCase()));
-            $btns.append($b);
+            $bts.append($b);
         });
-        $body.append($btns);
+        $body.append($bts);
 
         const $ratio = $('<div>').css({ padding: '5px' });
-        this.minRuralRatioValues.slice(1).forEach((val, i) => {
+        [0.25, 0.5, 0.75, 1.0, 1.25].forEach((val, i) => {
             const $b = this.getButtonElement(String(val));
             $b.click(() => this.setRatio(i + 1));
             if (this.ratio === i + 1) $b.addClass('disabled');
@@ -854,7 +885,7 @@ class AutoRuralTrade extends ModernUtils {
         this.active = false;
         clearInterval(this.loopId);
         this.loopId = null;
-        this.$progress.css('width', '0%');
+        if (this.$progress) this.$progress.css('width', '0%');
     }
 
     async tradeLoop() {
@@ -862,7 +893,7 @@ class AutoRuralTrade extends ModernUtils {
         if (this.doneTrade >= this.totalTrade) { this.stop(); return; }
         const towns = Object.keys(uw.ITowns.towns || {});
         await this.tradeWithRural(towns[this.doneTrade]);
-        this.$progress.css('width', `${(this.doneTrade / this.totalTrade) * 100}%`);
+        if (this.$progress) this.$progress.css('width', `${(this.doneTrade / this.totalTrade) * 100}%`);
         this.doneTrade++;
     }
 
@@ -874,8 +905,8 @@ class AutoRuralTrade extends ModernUtils {
         const farmTowns = GameApi.getFarmTowns();
         const relations = GameApi.getFarmPlayerRelations();
         const res = town.resources();
-        const x = town.getIslandCoordinateX();
-        const y = town.getIslandCoordinateY();
+        const x = GameApi.getIslandX(townId);
+        const y = GameApi.getIslandY(townId);
 
         for (const ft of farmTowns) {
             const a = ft.attributes;
@@ -890,12 +921,13 @@ class AutoRuralTrade extends ModernUtils {
                 if (ra.current_trade_ratio < this.ratio * 0.25) continue;
                 if (GameApi.availableTradeCapacity(townId) < 3000) continue;
 
-                const count = Math.min(town.getAvailableTradeCapacity() || 0, 3000);
-                if (count < 100) return;
+                const cap = town.getAvailableTradeCapacity() || 0;
+                if (cap < 100) return;
+                const amount = cap > 3000 ? 3000 : cap;
                 GameApi.ajaxPost('frontend_bridge', 'execute', {
                     model_url: `FarmTownPlayerRelation/${ra.id}`,
                     action_name: 'trade',
-                    arguments: { farm_town_id: ra.farm_town_id, amount: count },
+                    arguments: { farm_town_id: ra.farm_town_id, amount },
                     town_id: townId,
                 }, () => {});
                 await this.sleep(750);
@@ -907,8 +939,32 @@ class AutoRuralTrade extends ModernUtils {
 
 // Module: autoTrade.js
 class AutoTrade extends ModernUtils {
-    constructor() { super(); }
-    render() { return this.getTitleElement('Auto Trade').$container; }
+    constructor() {
+        super();
+        this.active = this.loadSettings('autotrade_active', false);
+    }
+
+    render() {
+        const { $container, $title } = this.getTitleElement('Auto Trade');
+        this.$container = $container;
+        this.$title = $title;
+
+        this.$title.click(() => this.toggle());
+        if (this.active) this.$title.addClass('active');
+
+        const $body = $('<div>').css({ padding: '5px' });
+        $body.text('Trade troops feature coming soon. Target a city and send balanced resources.');
+        this.$container.append($body);
+
+        return this.$container;
+    }
+
+    toggle() {
+        this.active = !this.active;
+        this.saveSettings('autotrade_active', this.active);
+        this.$title.toggleClass('active');
+    }
+
     async execute() { return false; }
 }
 
@@ -1286,6 +1342,10 @@ class ModernBot {
         this.autoFarm = new AutoFarm();
         this.autoUnitBuilder = new AutoUnitBuilder();
         this.autoGratis = new AutoGratis();
+        this.autoHide = new AutoHide();
+        this.autoRuralTrade = new AutoRuralTrade();
+        this.autoTrade = new AutoTrade();
+        this.autoBootcamp = new AutoBootcamp();
 
         new ModernMenu([
             {
@@ -1302,6 +1362,26 @@ class ModernBot {
                 title: 'Gratis',
                 id: 'gratis',
                 render: () => this.autoGratis.render(),
+            },
+            {
+                title: 'Rural Trade',
+                id: 'rural_trade',
+                render: () => this.autoRuralTrade.render(),
+            },
+            {
+                title: 'Trade',
+                id: 'trade',
+                render: () => this.autoTrade.render(),
+            },
+            {
+                title: 'Bootcamp',
+                id: 'bootcamp',
+                render: () => this.autoBootcamp.render(),
+            },
+            {
+                title: 'Hide',
+                id: 'hide',
+                render: () => this.autoHide.render(),
             },
         ]);
 

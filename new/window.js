@@ -39,7 +39,7 @@ class createGrepoWindow {
                  #${this.id} .submenu_link:hover {text-decoration: none;}
                  #${this.id} { display: flex; flex-wrap: wrap; }
                  #${this.id} li { float: none; min-width: 56px; }
-                 #${this.id}_content { clear: both; padding-top: 6px; }
+                 #${this.id}_content { clear: both; padding-top: 8px; margin-top: 8px; }
                  </style>
                 `,
             ).appendTo('head');

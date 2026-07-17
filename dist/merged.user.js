@@ -3808,15 +3808,21 @@ class AutoResource extends ModernUtil {
 
                 <div style="margin-bottom:4px;font-size:11px;font-weight:normal">
                     Reserve per city:
-                    <span style="margin-left:4px">Wood:</span>
-                    <input id="ar_wood_res" type="number" value="${this.reserve.wood}" style="width:70px;font-size:10px"
-                        onchange="window.modernBot.autoResource.setReserve('wood', this.value)">
-                    <span style="margin-left:4px">Stone:</span>
-                    <input id="ar_stone_res" type="number" value="${this.reserve.stone}" style="width:70px;font-size:10px"
-                        onchange="window.modernBot.autoResource.setReserve('stone', this.value)">
-                    <span style="margin-left:4px">Iron:</span>
-                    <input id="ar_iron_res" type="number" value="${this.reserve.iron}" style="width:70px;font-size:10px"
-                        onchange="window.modernBot.autoResource.setReserve('iron', this.value)">
+                    <span style="margin-left:4px">Wood:
+                        <span style="cursor:pointer;font-size:10px" onclick="event.stopPropagation();window.modernBot.autoResource.editReserve('wood',-5000)">◀</span>
+                        <b id="ar_wood_res">${this.reserve.wood}</b>
+                        <span style="cursor:pointer;font-size:10px" onclick="event.stopPropagation();window.modernBot.autoResource.editReserve('wood',5000)">▶</span>
+                    </span>
+                    <span style="margin-left:4px">Stone:
+                        <span style="cursor:pointer;font-size:10px" onclick="event.stopPropagation();window.modernBot.autoResource.editReserve('stone',-5000)">◀</span>
+                        <b id="ar_stone_res">${this.reserve.stone}</b>
+                        <span style="cursor:pointer;font-size:10px" onclick="event.stopPropagation();window.modernBot.autoResource.editReserve('stone',5000)">▶</span>
+                    </span>
+                    <span style="margin-left:4px">Iron:
+                        <span style="cursor:pointer;font-size:10px" onclick="event.stopPropagation();window.modernBot.autoResource.editReserve('iron',-5000)">◀</span>
+                        <b id="ar_iron_res">${this.reserve.iron}</b>
+                        <span style="cursor:pointer;font-size:10px" onclick="event.stopPropagation();window.modernBot.autoResource.editReserve('iron',5000)">▶</span>
+                    </span>
                 </div>
 
                 <div style="display:flex;flex-wrap:wrap;gap:3px;margin-top:4px">
@@ -3857,9 +3863,8 @@ class AutoResource extends ModernUtil {
         this.storage.save('ar_resend', this.resendPercent);
     };
 
-    setReserve = (type, value) => {
-        const num = parseInt(value) || 0;
-        this.reserve[type] = num;
+    editReserve = (type, delta) => {
+        this.reserve[type] = Math.max(0, this.reserve[type] + delta);
         this.storage.save('ar_reserve', this.reserve);
     };
 

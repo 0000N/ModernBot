@@ -16,6 +16,7 @@ class AutoResource extends ModernUtil {
 
     start = () => {
         if (this.interval) clearInterval(this.interval);
+        this.main(); // Run immediately
         this.interval = setInterval(this.main.bind(this), 30000);
     };
 
@@ -105,6 +106,7 @@ class AutoResource extends ModernUtil {
         this.targetTown = townId;
         this.storage.save('ar_target', townId);
         this.refreshAll();
+        if (this.enabled) this.main();
     };
 
     refreshAll = () => {
@@ -163,11 +165,12 @@ class AutoResource extends ModernUtil {
     };
 
     main = async () => {
-        if (!this.enabled || !this.targetTown) return;
+        if (!this.enabled) return;
+        if (!this.targetTown) { this.updateInfo('Select a target city'); return; }
         if ($('.botcheck').length || $('#recaptcha_window').length) return;
 
         const target = uw.ITowns.towns[this.targetTown];
-        if (!target) return;
+        if (!target) { this.updateInfo('Target city not found'); return; }
 
         const targetRes = target.resources();
         const targetStorage = targetRes.storage;
@@ -178,19 +181,19 @@ class AutoResource extends ModernUtil {
         const targetStone = targetRes.stone || 0;
         const targetIron = targetRes.iron || 0;
 
-        if (targetWood >= resendCap && targetStone >= resendCap && targetIron >= resendCap) {
-            this.updateInfo(`Target OK (${targetWood}/${fillCap}w)`);
+        const allOk = targetWood >= resendCap && targetStone >= resendCap && targetIron >= resendCap;
+        if (allOk) {
+            this.updateInfo(`${target.getName()} OK (${targetWood}w/${fillCap}c)`);
             return;
         }
 
-        const needWood = Math.max(0, fillCap - targetWood);
-        const needStone = Math.max(0, fillCap - targetStone);
-        const needIron = Math.max(0, fillCap - targetIron);
-
-        if (needWood <= 0 && needStone <= 0 && needIron <= 0) {
-            this.updateInfo('Storage full');
-            return;
-        }
+        const need = [
+            Math.max(0, fillCap - targetWood),
+            Math.max(0, fillCap - targetStone),
+            Math.max(0, fillCap - targetIron),
+        ];
+        const hasNeed = need[0] + need[1] + need[2] > 0;
+        if (!hasNeed) { this.updateInfo('Storage full'); return; }
 
         let sent = false;
         for (const [cityId, city] of Object.entries(uw.ITowns.towns || {})) {
@@ -198,35 +201,40 @@ class AutoResource extends ModernUtil {
             if (city.getAvailableTradeCapacity() < 500) continue;
 
             const res = city.resources();
-            const spareWood = Math.max(0, (res.wood || 0) - this.reserve.wood);
-            const spareStone = Math.max(0, (res.stone || 0) - this.reserve.stone);
-            const spareIron = Math.max(0, (res.iron || 0) - this.reserve.iron);
+            const spare = {
+                wood: Math.max(0, (res.wood || 0) - this.reserve.wood),
+                stone: Math.max(0, (res.stone || 0) - this.reserve.stone),
+                iron: Math.max(0, (res.iron || 0) - this.reserve.iron),
+            };
 
-            if (spareWood <= 0 && spareStone <= 0 && spareIron <= 0) continue;
+            const send = {
+                wood: Math.min(spare.wood, need[0]),
+                stone: Math.min(spare.stone, need[1]),
+                iron: Math.min(spare.iron, need[2]),
+            };
 
-            const sendWood = Math.min(spareWood, needWood);
-            const sendStone = Math.min(spareStone, needStone);
-            const sendIron = Math.min(spareIron, needIron);
-
-            if (sendWood <= 0 && sendStone <= 0 && sendIron <= 0) continue;
+            if (send.wood <= 0 && send.stone <= 0 && send.iron <= 0) continue;
 
             const data = {
                 id: this.targetTown,
-                wood: sendWood,
-                stone: sendStone,
-                iron: sendIron,
+                wood: send.wood,
+                stone: send.stone,
+                iron: send.iron,
                 town_id: cityId,
                 nl_init: true,
             };
 
             uw.gpAjax.ajaxPost('town_info', 'trade', data, false, () => {});
-            this.console.log(`Sent ${sendWood}w/${sendStone}s/${sendIron}i from ${city.getName()} to ${target.getName()}`);
+            this.console.log(`${cityId} → ${this.targetTown}: ${send.wood}w ${send.stone}s ${send.iron}i`);
             sent = true;
             await this.sleep(500);
             break;
         }
 
-        this.updateInfo(sent ? 'Sent resources' : 'No city has spare resources');
+        const needMsg = need[0] > 0 || need[1] > 0 || need[2] > 0
+            ? `Need: ${need[0]}w/${need[1]}s/${need[2]}i`
+            : '';
+        this.updateInfo(sent ? `Sent to ${target.getName()}` : `No spare resources. ${needMsg}`);
     };
 
     updateInfo = msg => {

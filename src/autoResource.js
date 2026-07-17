@@ -214,6 +214,17 @@ class AutoResource extends ModernUtil {
             };
 
             if (send.wood <= 0 && send.stone <= 0 && send.iron <= 0) continue;
+
+            // Cap at trade capacity
+            const capacity = Math.floor(city.getAvailableTradeCapacity() * 0.9);
+            const total = send.wood + send.stone + send.iron;
+            if (total < 100) continue;
+            if (total > capacity) {
+                const r = capacity / total;
+                send.wood = Math.floor(send.wood * r);
+                send.stone = Math.floor(send.stone * r);
+                send.iron = Math.floor(send.iron * r);
+            }
             if (send.wood + send.stone + send.iron < 100) continue;
 
             const data = {

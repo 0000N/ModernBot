@@ -18,6 +18,7 @@ class ModernBot {
 
         this.autoFarm = new AutoFarm();
         this.autoUnitBuilder = new AutoUnitBuilder();
+        this.autoGratis = new AutoGratis();
 
         new ModernMenu([
             {
@@ -29,6 +30,11 @@ class ModernBot {
                 title: 'Units',
                 id: 'unit_builder',
                 render: () => this.autoUnitBuilder.render(),
+            },
+            {
+                title: 'Gratis',
+                id: 'gratis',
+                render: () => this.autoGratis.render(),
             },
         ]);
 
@@ -72,7 +78,14 @@ class ModernBot {
 
         const hasUnitBuild = await this.autoUnitBuilder.execute();
         if (hasUnitBuild) {
-            console.log("[ModernBot] unit builder executed");
+            this.lastAction = Date.now();
+            this.currentDelay = this.utils.jitter(1000 * 8);
+            this.loopActive = false;
+            return;
+        }
+
+        const hasGratis = await this.autoGratis.execute();
+        if (hasGratis) {
             this.lastAction = Date.now();
             this.currentDelay = this.utils.jitter(1000 * 8);
             this.loopActive = false;

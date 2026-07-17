@@ -8,7 +8,6 @@ const menuPath = path.join(__dirname, 'new/menu.js');
 const gameApiPath = path.join(__dirname, 'new/gameApi.js');
 const indexPath = path.join(__dirname, 'new/index.js');
 const utilsPath = path.join(__dirname, 'new/utils.js');
-const windowPath = path.join(__dirname, 'new/window.js');
 const stylePath = path.join(__dirname, 'new/style.css');
 
 // Function to get the new version number
@@ -74,7 +73,7 @@ if (!fs.existsSync(path.dirname(distPath))) {
 fs.writeFileSync(distPath, header);
 
 // Append gameApi.js and utils.js first
-[gameApiPath, utilsPath, windowPath].forEach(filePath => {
+[gameApiPath, utilsPath].forEach(filePath => {
     const content = fs.readFileSync(filePath, 'utf-8');
     const fileName = path.basename(filePath);
     fs.appendFileSync(distPath, `\n\n// File: ${fileName}\n${content}`);

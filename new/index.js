@@ -66,7 +66,9 @@ class ModernBot {
             if (!active) return;
             const tab = this._tabs.find(t => t.id === active.id);
             if (tab) {
-                $('#MODERN_BOT_content').html(tab.render());
+                $('#MODERN_BOT_content')
+                    .html(tab.render())
+                    .css({ 'font-size': '13px', 'background': '#0d0d0d', 'color': '#f0e6d2' });
             }
         });
     }

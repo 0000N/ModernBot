@@ -66,6 +66,12 @@ class createGrepoWindow {
 
             let content = `<ul id="${this.id}" class="menu_inner"></ul><div id="${this.id}_content"> </div>`;
             uw.Layout.wnd.Create(uw.GPWindowMgr[`TYPE_${this.id}`]).setContent(content);
+            // Force high-contrast styling
+            uw.$(`#${this.id}_content`).css({
+                'font-size': '13px',
+                'background': '#0d0d0d',
+                'color': '#f0e6d2',
+            });
             /* Add and reder tabs */
             console.log(this.tabs);
             this.tabs.forEach((e) => {
@@ -98,7 +104,9 @@ class createGrepoWindow {
         /* Handle active tab */
         this.renderTab = function (id) {
             let tab = getTabById(id);
-            uw.$(`#${this.id}_content`).html(getTabById(id).render());
+            uw.$(`#${this.id}_content`)
+                .html(getTabById(id).render())
+                .css({ 'font-size': '13px', 'background': '#0d0d0d', 'color': '#f0e6d2' });
             uw.$(`#${this.id} .active`).removeClass('active');
             uw.$(`#${id}`).addClass('active');
             getTabById(id).afterRender ? getTabById(id).afterRender() : '';

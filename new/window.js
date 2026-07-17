@@ -36,7 +36,6 @@ class createGrepoWindow {
                 `<style id="${this.id}_custom_window_style">
                  #${this.id} .tab_icon { left: 23px;}
                  #${this.id} {top: -36px; right: 95px;}
-                 #${this.id} .submenu_link {color: #000;}
                  #${this.id} .submenu_link:hover {text-decoration: none;}
                  #${this.id} { display: flex; flex-wrap: wrap; }
                  #${this.id} li { float: none; min-width: 56px; }

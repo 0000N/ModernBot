@@ -3761,6 +3761,10 @@ class AutoResource extends ModernUtil {
         this.resendPercent = this.storage.load('ar_resend', 50);
         this.reserve = this.storage.load('ar_reserve', { wood: 10000, stone: 10000, iron: 10000 });
         this.interval = null;
+
+        // Refresh UI when switching towns
+        try { uw.$.Observer('GameEvents.town.town_switch').subscribe('autoResource', () => this.refreshAll()); } catch(e) {}
+
         if (this.enabled) this.start();
     }
 
@@ -3793,7 +3797,7 @@ class AutoResource extends ModernUtil {
             </div>
             <div style="padding:5px;font-weight:600">
                 <div style="margin-bottom:4px">
-                    Target: <b>${targetLabel}</b> (${currentTarget ? currentTarget.getPoints() + ' pts' : 'not set'})
+                    Target: <span id="ar_target_label"><b>${targetLabel}</b> (${currentTarget ? currentTarget.getPoints() + ' pts' : 'not set'})</span>
                 </div>
 
                 <div style="margin-bottom:4px;font-size:11px;font-weight:normal">
@@ -3825,7 +3829,7 @@ class AutoResource extends ModernUtil {
                     </span>
                 </div>
 
-                <div style="display:flex;flex-wrap:wrap;gap:3px;margin-top:4px">
+                <div id="ar_towns" style="display:flex;flex-wrap:wrap;gap:3px;margin-top:4px">
                     ${towns.map(([id, t]) => {
                         const isTarget = id == this.targetTown;
                         const isCurrent = id == town.id;
@@ -3854,6 +3858,41 @@ class AutoResource extends ModernUtil {
     setTarget = townId => {
         this.targetTown = townId;
         this.storage.save('ar_target', townId);
+        this.refreshAll();
+    };
+
+    refreshAll = () => {
+        const town = uw.ITowns.getCurrentTown();
+        const currentTarget = this.targetTown ? uw.ITowns.towns[this.targetTown] : null;
+        const targetLabel = currentTarget ? currentTarget.getName() : 'none';
+
+        // Update target label
+        const el = document.getElementById('ar_target_label');
+        if (el) el.innerHTML = `<b>${targetLabel}</b> (${currentTarget ? currentTarget.getPoints() + ' pts' : 'not set'})`;
+
+        // Update fill/resend display
+        const fEl = document.getElementById('ar_fill');
+        if (fEl) fEl.textContent = this.fillPercent + '%';
+        const rEl = document.getElementById('ar_resend');
+        if (rEl) rEl.textContent = this.resendPercent + '%';
+
+        // Update town buttons
+        const btnEl = document.getElementById('ar_towns');
+        if (btnEl) {
+            const towns = Object.entries(uw.ITowns.towns || {});
+            btnEl.innerHTML = towns.map(([id, t]) => {
+                const isTarget = id == this.targetTown;
+                const isCurrent = id == town.id;
+                const label = `${isCurrent ? '📍 ' : ''}${t.getName()}`;
+                const bg = isTarget ? 'background:#ffbb33;color:#000' : '';
+                const cls = `button_new${isTarget?' disabled':''}`;
+                return `<div style="cursor:pointer;margin:1px;${bg}" class="${cls}"
+                    onclick="event.stopPropagation();window.modernBot.autoResource.setTarget(${id})">
+                    <div class="left"></div><div class="right"></div>
+                    <div class="caption js-caption"> ${label} ${isTarget ? '⭐' : ''}<div class="effect js-effect"></div></div>
+                </div>`;
+            }).join('');
+        }
     };
 
     editFill = delta => {

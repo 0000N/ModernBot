@@ -1,9 +1,26 @@
 class AutoBuild extends ModernUtils {
+    SPRITES = {
+        main:     '-450px 0px',
+        storage:  '-250px -50px',
+        farm:     '-150px 0px',
+        academy:  '0px 0px',
+        temple:   '-300px -50px',
+        barracks: '-50px 0px',
+        docks:    '-100px 0px',
+        market:   '0px -50px',
+        hide:     '-200px 0px',
+        lumber:   '-400px 0px',
+        stoner:   '-200px -50px',
+        ironer:   '-250px 0px',
+        wall:     '-50px -100px',
+    };
+
+    BUILDINGS = ['main', 'storage', 'farm', 'academy', 'temple', 'barracks', 'docks', 'market', 'hide', 'lumber', 'stoner', 'ironer', 'wall'];
+
     constructor() {
         super();
         this.townsBuildings = this.loadSettings('buildings', {});
         this.active = this.loadSettings('ab_active', false);
-
         GameApi.onWindowOpen((e, handler) => {
             if (handler?.context !== 'building_senate') return;
             this._updateSenate(handler);
@@ -15,22 +32,21 @@ class AutoBuild extends ModernUtils {
         const id = `gpwnd_${handler.wnd.getID?.()}`;
         const updateView = () => {
             const iv = setInterval(() => {
-                const $window = $('#' + id);
-                const $mainTasks = $window.find('#main_tasks');
-                if (!$mainTasks.length) return;
-                $mainTasks.hide();
+                const $w = $('#' + id);
+                const $tasks = $w.find('#main_tasks');
+                if (!$tasks.length) return;
+                $tasks.hide();
                 const $new = $('<div>').append('<p style="padding:10px">AutoBuild active. Set levels in ModernBot tab.</p>');
-                $new.css({ position: $mainTasks.css('position'), left: parseInt($mainTasks.css('left')) - 20, top: $mainTasks.css('top') });
-                $mainTasks.after($new);
-                const $tree = $window.find('#techtree');
-                $tree.css({ position: 'relative', left: '40px' });
-                $window.css({ overflowY: 'visible' });
+                $new.css({ position: $tasks.css('position'), left: parseInt($tasks.css('left')) - 20, top: $tasks.css('top') });
+                $tasks.after($new);
+                $w.find('#techtree').css({ position: 'relative', left: '40px' });
+                $w.css({ overflowY: 'visible' });
                 clearInterval(iv);
             }, 10);
             setTimeout(() => clearInterval(iv), 100);
         };
-        const oldContent = handler.wnd.setContent2;
-        handler.wnd.setContent2 = (...args) => { updateView(); oldContent?.(...args); };
+        const old = handler.wnd.setContent2;
+        handler.wnd.setContent2 = (...a) => { updateView(); old?.(...a); };
     }
 
     render() {
@@ -42,77 +58,66 @@ class AutoBuild extends ModernUtils {
 
         const town = GameApi.getCurrentTown();
         if (!town) return $container;
-
         const townId = String(town.id);
         const isActive = townId in this.townsBuildings;
 
-        const $info = $('<div>').css({ padding: '5px' }).html(
-            `<b>${town.getName()}</b> [${town.getPoints()} pts]<br>` +
-            `Click title to ${isActive ? 'remove' : 'add'} this town to auto-build.`
-        );
+        const $info = $('<div>').css({ padding: '6px' });
+        $info.html(`<b>${town.getName()}</b> [${town.getPoints()} pts]`);
         $container.append($info);
 
         if (isActive) {
-            const $buildings = $('<div>').css({ padding: '5px' });
             const target = this.townsBuildings[townId] || {};
-            const bld = GameApi.getBuildings(townId);
-            const names = ['main', 'storage', 'farm', 'academy', 'temple', 'barracks', 'docks', 'market', 'hide', 'lumber', 'stoner', 'ironer', 'wall'];
-            for (const name of names) {
+            const bld = GameApi.getBuildings(town.id);
+            const $grid = $('<div>').css({ display: 'flex', flexWrap: 'wrap', gap: '4px', padding: '4px' });
+
+            for (const name of this.BUILDINGS) {
                 const cur = bld[name] || 0;
                 const tgt = target[name] || 0;
-                const diff = tgt - cur;
-                const color = diff > 0 ? '#ffbb33' : diff < 0 ? '#ee5555' : '#fff';
+                const sprite = this.SPRITES[name] || '0 0';
 
-                const $row = $('<div>').css({ display: 'flex', alignItems: 'center', margin: '1px 0', fontSize: '11px' });
+                const $box = $('<div>').addClass('auto_build_box').css({ margin: '2px' });
+                const $bld = $('<div>').addClass('auto_build_building').css({ backgroundPosition: sprite });
+                $box.append($bld);
 
-                $row.append($('<span>').css({ width: '80px' }).text(name));
-                $row.append($('<span>').css({ width: '30px', textAlign: 'center', cursor: 'pointer' }).text('−').click(e => { e.stopPropagation(); this._editLevel(town.id, name, -1, e.shiftKey); }));
-                $row.append($('<span>').css({ width: '40px', textAlign: 'center', color }).text(`${cur}→${tgt}`));
-                $row.append($('<span>').css({ width: '30px', textAlign: 'center', cursor: 'pointer' }).text('+').click(e => { e.stopPropagation(); this._editLevel(town.id, name, 1, e.shiftKey); }));
-                $row.append($('<span>').css({ width: '30px', textAlign: 'center', cursor: 'pointer' }).text('⚡').click(e => { e.stopPropagation(); this._editLevel(town.id, name, 0, false); }));
+                const $lvl = $('<div>').addClass('auto_build_lvl').text(`${cur}→${tgt}`);
+                $box.append($lvl);
 
-                $buildings.append($row);
+                const $up = $('<div>').addClass('auto_build_up_arrow').click(e => { e.stopPropagation(); this._editLevel(town.id, name, 1, e.shiftKey); });
+                const $down = $('<div>').addClass('auto_build_down_arrow').click(e => { e.stopPropagation(); this._editLevel(town.id, name, -1, e.shiftKey); });
+                $box.append($up, $down);
+
+                $grid.append($box);
             }
-            $container.append($buildings);
+            $container.append($grid);
         }
         return $container;
     }
 
     _editLevel(townId, name, d, shift) {
-        const townIdStr = String(townId);
-        if (!(townIdStr in this.townsBuildings)) return;
-        const town = GameApi.getTown(townId);
-        if (!town) return;
+        const tid = String(townId);
+        if (!(tid in this.townsBuildings)) return;
+        const bld = GameApi.getBuildings(townId);
+        if (!bld) return;
         const data = GameApi.getBuildingData(name);
         if (!data?.max_level) return;
-        const bld = GameApi.getBuildings(townId);
         const cur = bld[name] || 0;
-        let target = this.townsBuildings[townIdStr];
-
-        if (d) {
-            d = shift ? d * 10 : d;
-            target[name] = Math.min(Math.max(cur + d, data.min_level || 0), data.max_level);
-        } else {
-            if (target[name] === cur) target[name] = Math.min(Math.max(50, data.min_level || 0), data.max_level);
-            else target[name] = cur;
-        }
-        this.townsBuildings[townIdStr] = target;
+        const target = this.townsBuildings[tid];
+        d = shift ? d * 10 : d;
+        target[name] = Math.min(Math.max(cur + d, data.min_level || 0), data.max_level);
+        this.townsBuildings[tid] = target;
         this.saveSettings('buildings', this.townsBuildings);
     }
 
     toggle() {
         const town = GameApi.getCurrentTown();
         if (!town) return;
-        const townId = String(town.id);
-        if (townId in this.townsBuildings) {
-            delete this.townsBuildings[townId];
+        const tid = String(town.id);
+        if (tid in this.townsBuildings) {
+            delete this.townsBuildings[tid];
         } else {
-            this.townsBuildings[townId] = {};
+            this.townsBuildings[tid] = {};
             const bld = GameApi.getBuildings(town.id);
-            const names = ['main', 'storage', 'farm', 'academy', 'temple', 'barracks', 'docks', 'market', 'hide', 'lumber', 'stoner', 'ironer', 'wall'];
-            for (const n of names) {
-                this.townsBuildings[townId][n] = bld[n] || 0;
-            }
+            for (const n of this.BUILDINGS) this.townsBuildings[tid][n] = bld[n] || 0;
         }
         this.saveSettings('buildings', this.townsBuildings);
         this.active = Object.keys(this.townsBuildings).length > 0;
@@ -120,7 +125,6 @@ class AutoBuild extends ModernUtils {
     }
 
     async execute() {
-        if (!this.active) return false;
         for (const townId of Object.keys(this.townsBuildings)) {
             const town = GameApi.getTown(townId);
             if (!town) { delete this.townsBuildings[townId]; this.saveSettings('buildings', this.townsBuildings); continue; }
@@ -134,17 +138,14 @@ class AutoBuild extends ModernUtils {
 
     _isFullQueue(town) {
         const len = town.buildingOrders?.()?.length || 0;
-        const max = GameApi.isAdvisorActive('curator') ? 7 : 2;
-        return len >= max;
+        return len >= (GameApi.isAdvisorActive('curator') ? 7 : 2);
     }
 
     _isDone(town) {
-        const townId = String(town.id);
+        const tid = String(town.id);
         const bld = GameApi.getBuildings(town.id);
-        const target = this.townsBuildings[townId] || {};
-        for (const build of Object.keys(target)) {
-            if (target[build] !== bld[build]) return false;
-        }
+        const target = this.townsBuildings[tid] || {};
+        for (const b of Object.keys(target)) { if (target[b] !== bld[b]) return false; }
         return true;
     }
 
@@ -152,9 +153,8 @@ class AutoBuild extends ModernUtils {
         const town = GameApi.getTown(townId);
         if (!town) return;
         const res = GameApi.getResources(townId);
-        if (!res) return;
         const bdd = GameApi.getBuildingBuildData(townId);
-        if (!bdd?.[type]) return;
+        if (!bdd?.[type] || !res) return;
         const { resources_for, population_for } = bdd[type];
         if ((town.getAvailablePopulation?.() || 0) < population_for) return;
         const m = 20;
@@ -172,8 +172,7 @@ class AutoBuild extends ModernUtils {
         const town = GameApi.getTown(townId);
         if (!town) return;
         const bld = { ...(GameApi.getBuildings(townId) || {}) };
-        const orders = town.buildingOrders?.()?.models || [];
-        for (const o of orders) {
+        for (const o of (town.buildingOrders?.()?.models || [])) {
             if (o.attributes.tear_down) bld[o.attributes.building_type] = (bld[o.attributes.building_type] || 0) - 1;
             else bld[o.attributes.building_type] = (bld[o.attributes.building_type] || 0) + 1;
         }
@@ -191,31 +190,15 @@ class AutoBuild extends ModernUtils {
             return false;
         };
 
-        // EXACT V1 SEQUENCE — DO NOT MODIFY
         if ((bld['docks'] || 0) < 1) {
-            if (await check('lumber', 3)) return;
-            if (await check('stoner', 3)) return;
-            if (await check('farm', 4)) return;
-            if (await check('ironer', 3)) return;
-            if (await check('storage', 4)) return;
-            if (await check('temple', 3)) return;
-            if (await check('main', 5)) return;
-            if (await check('barracks', 5)) return;
-            if (await check('storage', 5)) return;
-            if (await check('stoner', 6)) return;
-            if (await check('lumber', 6)) return;
-            if (await check('ironer', 6)) return;
-            if (await check('main', 8)) return;
-            if (await check('farm', 8)) return;
-            if (await check('market', 6)) return;
-            if (await check('storage', 8)) return;
-            if (await check('academy', 7)) return;
-            if (await check('temple', 5)) return;
-            if (await check('farm', 12)) return;
-            if (await check('main', 15)) return;
-            if (await check('storage', 12)) return;
-            if (await check('main', 25)) return;
-            if (await check('hide', 10)) return;
+            if (await check('lumber', 3)) return; if (await check('stoner', 3)) return; if (await check('farm', 4)) return;
+            if (await check('ironer', 3)) return; if (await check('storage', 4)) return; if (await check('temple', 3)) return;
+            if (await check('main', 5)) return; if (await check('barracks', 5)) return; if (await check('storage', 5)) return;
+            if (await check('stoner', 6)) return; if (await check('lumber', 6)) return; if (await check('ironer', 6)) return;
+            if (await check('main', 8)) return; if (await check('farm', 8)) return; if (await check('market', 6)) return;
+            if (await check('storage', 8)) return; if (await check('academy', 7)) return; if (await check('temple', 5)) return;
+            if (await check('farm', 12)) return; if (await check('main', 15)) return; if (await check('storage', 12)) return;
+            if (await check('main', 25)) return; if (await check('hide', 10)) return;
         }
         if (await check('farm', 15)) return;
         if (await check(['storage', 'main'], 25)) return;

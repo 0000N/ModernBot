@@ -118,7 +118,7 @@ class GameApi {
         try { uw.$.Observer(uw.GameEvents.window.open).subscribe(cb); } catch(e) {}
     }
     static onTownSwitch(cb) {
-        try { uw.$.Observer(uw.GameEvents.town.town_switch).subscribe(cb); } catch(e) {}
+        try { uw.$.Observer(uw.GameEvents.town.town_switch).subscribe('modernBotTown', cb); } catch(e) {}
     }
 
     /* --- Player / Models --- */

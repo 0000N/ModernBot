@@ -41,7 +41,14 @@
     filter: hue-rotate(72deg) saturate(2.5);
 }
 
-/* --- Layout repris de la v1 (indispensable à l'affichage des modules) --- */
+/* --- Global fixes --- */
+#MODERN_BOT_content {
+    font-size: 13px;
+    color: #f0e6d2;
+    height: 100%;
+}
+
+/* --- Layout repris de la v1 --- */
 .split_content {
     width: 100%;
     display: inline-flex;

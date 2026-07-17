@@ -3968,6 +3968,7 @@ class AutoResource extends ModernUtil {
             };
 
             if (send.wood <= 0 && send.stone <= 0 && send.iron <= 0) continue;
+            if (send.wood + send.stone + send.iron < 100) continue;
 
             const data = {
                 id: this.targetTown,

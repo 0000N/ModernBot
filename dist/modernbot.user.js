@@ -191,6 +191,24 @@ class GameApi {
         try { uw.$.Observer(uw.GameEvents.town.town_switch).subscribe(cb); } catch(e) {}
     }
 
+    /* --- Player / Models --- */
+    static playerId() {
+        return GameApi._safe('playerId', () => uw.Game.player_id, null);
+    }
+    static getModels() {
+        return GameApi._safe('getModels', () => uw.MM.getModels(), {});
+    }
+    static getModelByNameAndPlayerId(name) {
+        return GameApi._safe('model_' + name,
+            () => uw.MM.getModelByNameAndPlayerId(name), null);
+    }
+
+    /* --- Ajax with error handler --- */
+    static ajaxPostWithHandlers(controller, action, data, onSuccess, onError) {
+        return GameApi._safe('ajaxPostHandlers',
+            () => uw.gpAjax.ajaxPost(controller, action, data, false, onSuccess, onError), null);
+    }
+
     /* --- Collections --- */
     static getCollection(name) {
         return GameApi._safe('collection_' + name,
@@ -409,9 +427,158 @@ class AntiRage extends ModernUtils {
 
 // Module: autoBootcamp.js
 class AutoBootcamp extends ModernUtils {
-    constructor() { super(); }
-    render() { return this.getTitleElement('Auto Bootcamp').$container; }
-    async execute() { return false; }
+    constructor() {
+        super();
+        this.active = this.loadSettings('ab_active', false);
+        this.useDef = this.loadSettings('bootcamp_use_def', false);
+
+        this.$title = this.getTitleElement('Auto Bootcamp').$title;
+        this.$title.click(() => this.toggle());
+
+        this.$btnOff = this.getButtonElement('Only off');
+        this.$btnDef = this.getButtonElement('Off & Def');
+        this.$btnOff.click(() => this.triggerUseDef());
+        this.$btnDef.click(() => this.triggerUseDef());
+        this._updateBtnStyle();
+
+        const $div = $('<div>').css({ display: 'flex', justifyContent: 'center', padding: '10px' });
+        $div.append(this.$btnOff, this.$btnDef);
+
+        this.$settings = $('<div>');
+        this.$settings.addClass('game_border').css({ margin: '20px' });
+        this.$settings.css({
+            'border-image-source': '',
+            'border-image-slice': '',
+            'border-image-width': '',
+        });
+        const $inner = $('<div>').css({ padding: '5px' });
+        $inner.append(this.$title);
+        $inner.append($div);
+        this.$settings.append($inner);
+
+        GameApi.onWindowOpen((e, handler) => {
+            if (!handler?.attributes || handler.attributes.window_type !== 'attack_spot') return;
+            const cid = handler.cid;
+            const $window = $(`#window_${cid}`);
+            $window.css('height', '660px');
+            const iv = setInterval(() => {
+                const $content = $window.find('.window_content');
+                if ($content.length === 0) return;
+                clearInterval(iv);
+                $content.append(this.$settings.clone(true));
+            }, 100);
+        });
+    }
+
+    render() {
+        const $box = $('<div>').css({ marginBottom: '20px' });
+        $box.append(this.$title.clone(true).click(() => this.toggle()));
+        const $div = $('<div>').css({ display: 'flex', justifyContent: 'center', padding: '10px' });
+        $div.append(this.$btnOff.clone(true).click(() => this.triggerUseDef()));
+        $div.append(this.$btnDef.clone(true).click(() => this.triggerUseDef()));
+        $box.append($div);
+        this._updateBtnStyle();
+        return $box;
+    }
+
+    _updateBtnStyle() {
+        if (this.useDef) {
+            this.$btnOff.addClass('disabled');
+            this.$btnDef.removeClass('disabled');
+        } else {
+            this.$btnDef.addClass('disabled');
+            this.$btnOff.removeClass('disabled');
+        }
+        this.$title.toggleClass('active', this.active);
+    }
+
+    triggerUseDef() {
+        this.useDef = !this.useDef;
+        this.saveSettings('bootcamp_use_def', this.useDef);
+        this._updateBtnStyle();
+    }
+
+    toggle() {
+        this.active = !this.active;
+        this.saveSettings('ab_active', this.active);
+        this._updateBtnStyle();
+    }
+
+    async execute() {
+        if (!this.active) return false;
+        if (this._rewardBootcamp()) return true;
+        if (this._attackBootcamp()) return true;
+        return false;
+    }
+
+    _rewardBootcamp() {
+        const model = GameApi.getModelByNameAndPlayerId('PlayerAttackSpot');
+        if (!model || typeof model.getLevel === 'undefined') {
+            this.active = false;
+            this.saveSettings('ab_active', false);
+            return true;
+        }
+        if (!model.hasReward()) return false;
+        const reward = model.getReward();
+        if (reward.power_id.includes('instant') && !reward.power_id.includes('favor')) {
+            this._useReward();
+            return true;
+        }
+        if (reward.stashable) this._stashReward();
+        else this._useReward();
+        return true;
+    }
+
+    _attackBootcamp() {
+        const model = GameApi.getModelByNameAndPlayerId('PlayerAttackSpot');
+        if (!model || model.getCooldownDuration() > 0) return false;
+
+        const MovementsUnits = GameApi.getModels()?.MovementsUnits;
+        if (MovementsUnits) {
+            for (const mu of Object.values(MovementsUnits)) {
+                if (mu.attributes.destination_is_attack_spot || mu.attributes.origin_is_attack_spot) return false;
+            }
+        }
+
+        const town = GameApi.getCurrentTown();
+        if (!town) return false;
+        const units = { ...town.units() };
+        delete units.militia;
+        for (const unit in units) {
+            if (GameApi.getUnitData(unit)?.is_naval) delete units[unit];
+        }
+        if (!this.useDef) {
+            delete units.sword;
+            delete units.archer;
+        }
+        if (Object.keys(units).length === 0) return false;
+
+        const playerId = GameApi.playerId() || uw.Game?.player_id;
+        GameApi.ajaxPost('frontend_bridge', 'execute', {
+            model_url: `PlayerAttackSpot/${playerId}`,
+            action_name: 'attack',
+            arguments: units,
+        }, () => {});
+        return true;
+    }
+
+    _useReward() {
+        const playerId = GameApi.playerId() || uw.Game?.player_id;
+        GameApi.ajaxPost('frontend_bridge', 'execute', {
+            model_url: `PlayerAttackSpot/${playerId}`,
+            action_name: 'useReward',
+            arguments: {},
+        }, () => {});
+    }
+
+    _stashReward() {
+        const playerId = GameApi.playerId() || uw.Game?.player_id;
+        GameApi.ajaxPost('frontend_bridge', 'execute', {
+            model_url: `PlayerAttackSpot/${playerId}`,
+            action_name: 'stashReward',
+            arguments: {},
+        }, () => {}, () => this._useReward());
+    }
 }
 
 
@@ -820,6 +987,286 @@ class AutoHide extends ModernUtils {
                 town_id: this.activeTown,
             }, () => {});
         }
+    }
+}
+
+
+// Module: autoParty.js
+class AutoParty extends ModernUtils {
+    constructor() {
+        super();
+        this.activeTypes = this.loadSettings('ap_types', { festival: false, procession: false, theater: false });
+        this.single = this.loadSettings('ap_single', true);
+        this.active = this.loadSettings('ap_enable', false);
+    }
+
+    render() {
+        const { $container, $title } = this.getTitleElement('Auto Party');
+        this.$container = $container;
+        this.$title = $title;
+
+        this.$title.click(() => this.toggle());
+        if (this.active) this.$title.addClass('active');
+
+        const $types = $('<div>').css({ padding: '5px' });
+        ['festival', 'procession', 'theater'].forEach(type => {
+            const $b = this.getButtonElement(type.charAt(0).toUpperCase() + type.slice(1));
+            $b.click(() => this.triggerType(type));
+            if (!this.activeTypes[type]) $b.addClass('disabled');
+            $types.append($b);
+        });
+
+        const $mode = $('<div>').css({ padding: '5px' });
+        const $single = this.getButtonElement('Single');
+        const $multi = this.getButtonElement('All');
+        $single.click(() => this.triggerMode(0));
+        $multi.click(() => this.triggerMode(1));
+        if (!this.single) $single.addClass('disabled');
+        else $multi.addClass('disabled');
+        $mode.append($single, $multi);
+
+        $container.append($types, $mode);
+        return $container;
+    }
+
+    triggerType(type) {
+        this.activeTypes[type] = !this.activeTypes[type];
+        this.saveSettings('ap_types', this.activeTypes);
+    }
+
+    triggerMode(val) {
+        this.single = !val;
+        this.saveSettings('ap_single', this.single);
+    }
+
+    toggle() {
+        this.active = !this.active;
+        this.saveSettings('ap_enable', this.active);
+        this.$title.toggleClass('active');
+    }
+
+    async execute() {
+        if (!this.active) return false;
+        let triggered = false;
+        if (this.activeTypes['procession']) triggered = await this.checkTriumph() || triggered;
+        if (this.activeTypes['festival']) triggered = await this.checkParty() || triggered;
+        if (this.activeTypes['theater']) triggered = await this.checkTheater() || triggered;
+        return triggered;
+    }
+
+    getCelebrationsList(type) {
+        const models = uw.MM?.getModels()?.Celebration;
+        if (!models) return [];
+        return Object.values(models)
+            .filter(c => c.attributes.celebration_type === type)
+            .map(c => c.attributes.town_id);
+    }
+
+    async checkParty() {
+        let max = 10;
+        const party = this.getCelebrationsList('party');
+        if (this.single) {
+            const towns = Object.keys(uw.ITowns.towns || {});
+            for (const townId of towns) {
+                if (party.includes(parseInt(townId))) continue;
+                const town = GameApi.getTown(townId);
+                if (!town) continue;
+                const bld = GameApi.getBuildings(townId);
+                if (bld.academy < 30) continue;
+                const res = GameApi.getResources(townId);
+                if (!res || res.wood < 15000 || res.stone < 18000 || res.iron < 15000) continue;
+                this.makeCelebration('party', townId);
+                await this.sleep(750);
+                max--;
+                if (max <= 0) break;
+            }
+        } else {
+            if (party.length > 1) return false;
+            this.makeCelebration('party');
+        }
+        return max < 10;
+    }
+
+    async checkTriumph() {
+        let max = 10;
+        const killModel = GameApi.getModelByNameAndPlayerId('PlayerKillpoints');
+        const kp = killModel?.attributes || { att: 0, def: 0, used: 0 };
+        let available = kp.att + kp.def - kp.used;
+        if (available < 300) return false;
+        const triumph = this.getCelebrationsList('triumph');
+        // single/multiple swapped (intentionnel v1)
+        if (!this.single) {
+            const towns = Object.keys(uw.ITowns.towns || {});
+            for (const townId of towns) {
+                if (triumph.includes(parseInt(townId))) continue;
+                this.makeCelebration('triumph', townId);
+                await this.sleep(500);
+                available -= 300;
+                if (available < 300) break;
+                max--;
+                if (max <= 0) break;
+            }
+        } else {
+            if (triumph.length > 1) return false;
+            this.makeCelebration('triumph');
+        }
+        return max < 10;
+    }
+
+    async checkTheater() {
+        let max = 10;
+        const theater = this.getCelebrationsList('theater');
+        if (this.single) {
+            const towns = Object.keys(uw.ITowns.towns || {});
+            for (const townId of towns) {
+                if (theater.includes(parseInt(townId))) continue;
+                const bld = GameApi.getBuildings(townId);
+                if (bld.theater !== 1) continue;
+                const res = GameApi.getResources(townId);
+                if (!res || res.wood < 10000 || res.stone < 12000 || res.iron < 10000) continue;
+                this.makeCelebration('theater', townId);
+                await this.sleep(500);
+                max--;
+                if (max <= 0) break;
+            }
+        } else {
+            if (theater.length > 1) return false;
+            this.makeCelebration('theater');
+        }
+        return max < 10;
+    }
+
+    makeCelebration(type, townId) {
+        if (typeof townId === 'undefined') {
+            GameApi.ajaxPost('town_overviews', 'start_all_celebrations', { celebration_type: type }, () => {});
+        } else {
+            GameApi.ajaxPost('building_place', 'start_celebration', { celebration_type: type, town_id: townId }, () => {});
+        }
+    }
+}
+
+
+// Module: autoRuralLevel.js
+class AutoRuralLevel extends ModernUtils {
+    constructor() {
+        super();
+        this.ruralLevel = this.loadSettings('enable_autorural_level', 1);
+        this.active = this.loadSettings('enable_autorural_level_active', false);
+    }
+
+    render() {
+        const { $container, $title } = this.getTitleElement('Auto Rural Level');
+        this.$container = $container;
+        this.$title = $title;
+
+        this.$title.click(() => this.toggle());
+        if (this.active) this.$title.addClass('active');
+
+        const $body = $('<div>').css({ padding: '5px' });
+        for (let n = 1; n <= 6; n++) {
+            const $b = this.getButtonElement(`lvl ${n}`);
+            $b.click(() => this.setRuralLevel(n));
+            if (this.ruralLevel === n) $b.addClass('disabled');
+            $body.append($b);
+        }
+        this.$container.append($body);
+        return this.$container;
+    }
+
+    setRuralLevel(n) {
+        this.ruralLevel = n;
+        this.saveSettings('enable_autorural_level', n);
+    }
+
+    toggle() {
+        this.active = !this.active;
+        this.saveSettings('enable_autorural_level_active', this.active);
+        this.$title.toggleClass('active');
+    }
+
+    async execute() {
+        if (!this.active) return false;
+
+        const farmTowns = GameApi.getCollection('FarmTown');
+        const relations = GameApi.getCollection('FarmTownPlayerRelation');
+        const killModel = GameApi.getModelByNameAndPlayerId('PlayerKillpoints');
+        const kp = killModel?.attributes || { att: 0, def: 0, used: 0 };
+        const available = kp.att + kp.def - kp.used;
+
+        const locked = relations.filter(r => r.attributes.relation_status === 0);
+        const unlocked = relations.length - locked.length;
+
+        if (locked.length > 0) {
+            const discounts = [2, 8, 10, 30, 50, 100];
+            if (unlocked < discounts.length && available < discounts[unlocked]) return false;
+            if (available < 100) return false;
+
+            const towns = this.generateList();
+            for (const townId of towns) {
+                const town = GameApi.getTown(townId);
+                if (!town) continue;
+                const x = GameApi.getIslandX(townId);
+                const y = GameApi.getIslandY(townId);
+                for (const ft of farmTowns) {
+                    if (ft.attributes.island_x !== x || ft.attributes.island_y !== y) continue;
+                    for (const rel of locked) {
+                        if (ft.attributes.id !== rel.attributes.farm_town_id) continue;
+                        GameApi.ajaxPost('frontend_bridge', 'execute', {
+                            model_url: `FarmTownPlayerRelation/${rel.id}`,
+                            action_name: 'unlock',
+                            arguments: { farm_town_id: ft.attributes.id },
+                            town_id: townId,
+                        }, () => {});
+                        console.log(`[ModernBot] unlocked ${ft.attributes.name}`);
+                        return true;
+                    }
+                }
+            }
+        } else {
+            const towns = this.generateList();
+            const levelCosts = [1, 5, 25, 50, 100];
+            for (let level = 1; level < this.ruralLevel; level++) {
+                if (available < levelCosts[level - 1]) return false;
+                for (const townId of towns) {
+                    const town = GameApi.getTown(townId);
+                    if (!town) continue;
+                    const x = GameApi.getIslandX(townId);
+                    const y = GameApi.getIslandY(townId);
+                    for (const ft of farmTowns) {
+                        if (ft.attributes.island_x !== x || ft.attributes.island_y !== y) continue;
+                        for (const rel of relations) {
+                            if (ft.attributes.id !== rel.attributes.farm_town_id) continue;
+                            if (rel.attributes.expansion_at) continue;
+                            if (rel.attributes.expansion_stage > level) continue;
+                            GameApi.ajaxPost('frontend_bridge', 'execute', {
+                                model_url: `FarmTownPlayerRelation/${rel.id}`,
+                                action_name: 'upgrade',
+                                arguments: { farm_town_id: ft.attributes.id },
+                                town_id: townId,
+                            }, () => {});
+                            console.log(`[ModernBot] upgraded ${ft.attributes.name}`);
+                            return true;
+                        }
+                    }
+                }
+            }
+            this.active = false;
+            this.saveSettings('enable_autorural_level_active', false);
+        }
+        return false;
+    }
+
+    generateList() {
+        const towns = GameApi.getTowns();
+        const seen = new Set();
+        const list = [];
+        for (const t of towns) {
+            const { on_small_island, island_id, id } = t.attributes;
+            if (on_small_island || seen.has(island_id)) continue;
+            seen.add(island_id);
+            list.push(id);
+        }
+        return list;
     }
 }
 
@@ -1346,6 +1793,8 @@ class ModernBot {
         this.autoRuralTrade = new AutoRuralTrade();
         this.autoTrade = new AutoTrade();
         this.autoBootcamp = new AutoBootcamp();
+        this.autoRuralLevel = new AutoRuralLevel();
+        this.autoParty = new AutoParty();
 
         new ModernMenu([
             {
@@ -1383,6 +1832,16 @@ class ModernBot {
                 id: 'hide',
                 render: () => this.autoHide.render(),
             },
+            {
+                title: 'Rural Lvl',
+                id: 'rural_level',
+                render: () => this.autoRuralLevel.render(),
+            },
+            {
+                title: 'Party',
+                id: 'party',
+                render: () => this.autoParty.render(),
+            },
         ]);
 
 
@@ -1400,6 +1859,12 @@ class ModernBot {
         });
     }
 
+    _scheduleNext() {
+        this.lastAction = Date.now();
+        this.currentDelay = this.utils.jitter(1000 * 8);
+        this.loopActive = false;
+    }
+
     async loop() {
         if (Date.now() - this.lastInteraction < this.STOP_TIME) return;
         if (GameApi.isCaptchaActive()) return;
@@ -1415,29 +1880,17 @@ class ModernBot {
         $("#modern_settings").addClass("rotate-forever")
 
         const hasFarm = await this.autoFarm.execute();
-        if (hasFarm) {
-            console.log("Farm was executed");
-            this.lastAction = Date.now();
-            this.currentDelay = this.utils.jitter(1000 * 8);
-            this.loopActive = false;
-            return;
-        };
+        if (hasFarm) { this._scheduleNext(); return; }
 
         const hasUnitBuild = await this.autoUnitBuilder.execute();
-        if (hasUnitBuild) {
-            this.lastAction = Date.now();
-            this.currentDelay = this.utils.jitter(1000 * 8);
-            this.loopActive = false;
-            return;
-        }
+        if (hasUnitBuild) { this._scheduleNext(); return; }
 
         const hasGratis = await this.autoGratis.execute();
-        if (hasGratis) {
-            this.lastAction = Date.now();
-            this.currentDelay = this.utils.jitter(1000 * 8);
-            this.loopActive = false;
-            return;
-        }
+        if (hasGratis) { this._scheduleNext(); return; }
+
+        if (await this.autoBootcamp.execute()) { this._scheduleNext(); return; }
+        if (await this.autoRuralLevel.execute()) { this._scheduleNext(); return; }
+        if (await this.autoParty.execute()) { this._scheduleNext(); return; }
 
         this.loopActive = false;
     }

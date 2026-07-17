@@ -121,6 +121,24 @@ class GameApi {
         try { uw.$.Observer(uw.GameEvents.town.town_switch).subscribe(cb); } catch(e) {}
     }
 
+    /* --- Player / Models --- */
+    static playerId() {
+        return GameApi._safe('playerId', () => uw.Game.player_id, null);
+    }
+    static getModels() {
+        return GameApi._safe('getModels', () => uw.MM.getModels(), {});
+    }
+    static getModelByNameAndPlayerId(name) {
+        return GameApi._safe('model_' + name,
+            () => uw.MM.getModelByNameAndPlayerId(name), null);
+    }
+
+    /* --- Ajax with error handler --- */
+    static ajaxPostWithHandlers(controller, action, data, onSuccess, onError) {
+        return GameApi._safe('ajaxPostHandlers',
+            () => uw.gpAjax.ajaxPost(controller, action, data, false, onSuccess, onError), null);
+    }
+
     /* --- Collections --- */
     static getCollection(name) {
         return GameApi._safe('collection_' + name,

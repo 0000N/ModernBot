@@ -23,6 +23,8 @@ class ModernBot {
         this.autoRuralTrade = new AutoRuralTrade();
         this.autoTrade = new AutoTrade();
         this.autoBootcamp = new AutoBootcamp();
+        this.autoRuralLevel = new AutoRuralLevel();
+        this.autoParty = new AutoParty();
 
         new ModernMenu([
             {
@@ -60,6 +62,16 @@ class ModernBot {
                 id: 'hide',
                 render: () => this.autoHide.render(),
             },
+            {
+                title: 'Rural Lvl',
+                id: 'rural_level',
+                render: () => this.autoRuralLevel.render(),
+            },
+            {
+                title: 'Party',
+                id: 'party',
+                render: () => this.autoParty.render(),
+            },
         ]);
 
 
@@ -77,6 +89,12 @@ class ModernBot {
         });
     }
 
+    _scheduleNext() {
+        this.lastAction = Date.now();
+        this.currentDelay = this.utils.jitter(1000 * 8);
+        this.loopActive = false;
+    }
+
     async loop() {
         if (Date.now() - this.lastInteraction < this.STOP_TIME) return;
         if (GameApi.isCaptchaActive()) return;
@@ -92,29 +110,17 @@ class ModernBot {
         $("#modern_settings").addClass("rotate-forever")
 
         const hasFarm = await this.autoFarm.execute();
-        if (hasFarm) {
-            console.log("Farm was executed");
-            this.lastAction = Date.now();
-            this.currentDelay = this.utils.jitter(1000 * 8);
-            this.loopActive = false;
-            return;
-        };
+        if (hasFarm) { this._scheduleNext(); return; }
 
         const hasUnitBuild = await this.autoUnitBuilder.execute();
-        if (hasUnitBuild) {
-            this.lastAction = Date.now();
-            this.currentDelay = this.utils.jitter(1000 * 8);
-            this.loopActive = false;
-            return;
-        }
+        if (hasUnitBuild) { this._scheduleNext(); return; }
 
         const hasGratis = await this.autoGratis.execute();
-        if (hasGratis) {
-            this.lastAction = Date.now();
-            this.currentDelay = this.utils.jitter(1000 * 8);
-            this.loopActive = false;
-            return;
-        }
+        if (hasGratis) { this._scheduleNext(); return; }
+
+        if (await this.autoBootcamp.execute()) { this._scheduleNext(); return; }
+        if (await this.autoRuralLevel.execute()) { this._scheduleNext(); return; }
+        if (await this.autoParty.execute()) { this._scheduleNext(); return; }
 
         this.loopActive = false;
     }

@@ -75,11 +75,14 @@ class AutoResource extends ModernUtil {
                     ${towns.map(([id, t]) => {
                         const isTarget = id == this.targetTown;
                         const isCurrent = id == town.id;
-                        const label = `${isCurrent ? '📍' : ''} ${t.getName()} [${t.getPoints()}]`;
-                        return `<div style="cursor:pointer;padding:2px 5px;border-radius:3px;font-size:10px;
-                            ${isTarget ? 'background:#ffbb33;color:#000' : 'background:rgba(255,255,255,.1);color:#ccc'}"
+                        const label = `${isCurrent ? '📍 ' : ''}${t.getName()}`;
+                        const bg = isTarget ? 'background:#ffbb33;color:#000' : '';
+                        const cls = `button_new${isTarget?' disabled':''}`;
+                        return `<div style="cursor:pointer;margin:1px;${bg}" class="${cls}"
                             onclick="event.stopPropagation();window.modernBot.autoResource.setTarget(${id})">
-                            ${label}${isTarget ? ' ⭐' : ''}</div>`;
+                            <div class="left"></div><div class="right"></div>
+                            <div class="caption js-caption"> ${label} ${isTarget ? '⭐' : ''}<div class="effect js-effect"></div></div>
+                        </div>`;
                     }).join('')}
                 </div>
                 <div id="ar_info" style="margin-top:4px;font-size:10px;font-weight:normal"></div>

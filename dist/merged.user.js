@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         ModernBot
-// @version      1.22.1
+// @version      1.22.2
 // @description  Bot Grepolis 2026 - Fork 0000N
 // @match        http://*.grepolis.com/game/*
 // @match        https://*.grepolis.com/game/*

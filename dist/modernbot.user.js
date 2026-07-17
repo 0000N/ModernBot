@@ -895,9 +895,10 @@ class AutoBuild extends ModernUtils {
 class AutoFarm extends ModernUtils {
     constructor() {
         super();
-
         this.active = this.loadSettings('farm_active', false);
         this.duration = this.loadSettings('farm_duration', 1);
+        this.nextCollection = 0;
+        this.timerInterval = null;
     }
 
     render() {
@@ -908,208 +909,187 @@ class AutoFarm extends ModernUtils {
         this.$title.click(() => this.toggle());
         if (this.active) this.$title.addClass('active');
 
-        this.$buttonBox = $('<div>').css({ "padding": "5px" })
-        this.$container.append(this.$buttonBox);
+        // Options
+        const OPTIONS = [
+            { label: '5 min',  dur: 1, base: 300,  boost: 600 },
+            { label: '10 min', dur: 2, base: 600,  boost: 1200 },
+            { label: '15 min', dur: 3, base: 900,  boost: 1800 },
+            { label: '20 min', dur: 4, base: 1200, boost: 2400 },
+            { label: '30 min', dur: 5, base: 1800, boost: 3600 },
+            { label: '45 min', dur: 6, base: 2700, boost: 5400 },
+        ];
 
-        this.$button1 = this.getButtonElement("5 min")
-        this.$button1.click(() => this.setDuration(1));
-        this.$button2 = this.getButtonElement("20 min")
-        this.$button2.click(() => this.setDuration(2));
+        this.durationBtns = {};
+        const $btnBox = $('<div>').css({ padding: '5px', display: 'flex', flexWrap: 'wrap', gap: '3px' });
+        OPTIONS.forEach(o => {
+            const $b = this.getButtonElement(o.label);
+            $b.click(() => this.setDuration(o.dur, o.base, o.boost));
+            this.durationBtns[o.dur] = $b;
+            $btnBox.append($b);
+        });
+        this.$container.append($btnBox);
 
-        this.setDuration(this.duration);
-        this.$buttonBox.append(this.$button1, this.$button2)
+        this._refreshButtons();
 
+        // Timer display
+        this.$timer = $('<div>').css({ padding: '6px', fontSize: '14px', fontWeight: 'bold' });
+        this.$container.append(this.$timer);
+        this._updateTimer();
+
+        if (this.active) this._startTimer();
         return this.$container;
+    }
+
+    _refreshButtons() {
+        Object.entries(this.durationBtns).forEach(([d, $b]) => {
+            $b.toggleClass('disabled', parseInt(d) === this.duration);
+        });
+    }
+
+    setDuration(dur, base, boost) {
+        this.duration = dur;
+        this._base = base;
+        this._boost = boost;
+        this.saveSettings('farm_duration', dur);
+        this._refreshButtons();
     }
 
     toggle() {
         this.active = !this.active;
         this.saveSettings('farm_active', this.active);
-        this.$title.toggleClass('active');
+        if (this.$title) this.$title.toggleClass('active');
+        if (this.active) this._startTimer();
+        else this._stopTimer();
     }
 
-    setDuration(duration) {
-        this.duration = duration;
-        this.saveSettings('farm_duration', duration);
+    _startTimer() {
+        this._stopTimer();
+        this._updateTimer();
+        this.timerInterval = setInterval(() => this._updateTimer(), 1000);
+    }
 
-        this.$button1.removeClass('disabled');
-        this.$button2.removeClass('disabled');
+    _stopTimer() {
+        if (this.timerInterval) { clearInterval(this.timerInterval); this.timerInterval = null; }
+    }
 
-        if (duration === 1) this.$button1.addClass('disabled');
-        if (duration === 2) this.$button2.addClass('disabled');
+    _updateTimer() {
+        const sec = Math.max(0, Math.floor(this.nextCollection / 1000));
+        if (this.$timer) {
+            if (this.active && this.nextCollection > 0) {
+                const m = Math.floor(sec / 60), s = sec % 60;
+                this.$timer.text(`⏳ Next: ${m}m ${s}s`);
+                this.$timer.css('color', '#ffcc00');
+            } else if (this.active) {
+                this.$timer.text(`✅ Collecting...`);
+                this.$timer.css('color', '#4fc3f7');
+            } else {
+                this.$timer.text(`⏸ Stopped`);
+                this.$timer.css('color', '#666');
+            }
+        }
     }
 
     async execute() {
         if (!this.active) return false;
+        if (GameApi.isCaptchaActive()) return false;
 
-        const next_collection = this.getNextCollection();
-        console.log('Next collection in', next_collection);
-        if (next_collection > 0) return false;
+        this.nextCollection = this.getNextCollection();
+        if (this.nextCollection > 0) return false;
 
         this.polis_list = this.generateList();
         await this.claim();
-
+        this.nextCollection = this.getNextCollection();
         return true;
     }
 
-    // TODO: Ensure that this list has the right sorting
     generateList = () => {
-        const islands = {};  // island_id -> { town_id, min_percent }
+        const islands = {};
         const { models: towns } = uw.MM.getOnlyCollectionByName('Town');
-
         for (const town of towns) {
             const { on_small_island, island_id, id } = town.attributes;
             if (on_small_island) continue;
-
             const { wood, stone, iron, storage } = uw.ITowns.getTown(id).resources();
             const minPercent = Math.min(wood, stone, iron) / storage;
-
             if (!islands[island_id] || minPercent < islands[island_id].minPercent) {
                 islands[island_id] = { townId: id, minPercent };
             }
         }
-
         return Object.values(islands).map(i => i.townId);
     };
 
-
     getNextCollection = () => {
         const { models } = uw.MM.getCollections().FarmTownPlayerRelation[0];
-
         const lootCounts = {};
         for (const model of models) {
             const { lootable_at } = model.attributes;
             if (!lootable_at) continue;
             lootCounts[lootable_at] = (lootCounts[lootable_at] || 0) + 1;
         }
-
-        let maxLootableTime = 0;
-        let maxValue = 0;
-        for (const lootableTime in lootCounts) {
-            const value = lootCounts[lootableTime];
-            if (value < maxValue) continue;
-            maxLootableTime = lootableTime;
-            maxValue = value;
+        let maxTime = 0, maxVal = 0;
+        for (const t in lootCounts) {
+            if (lootCounts[t] < maxVal) continue;
+            maxTime = t; maxVal = lootCounts[t];
         }
-
-        const seconds = maxLootableTime - Math.floor(Date.now() / 1000);
-        return seconds > 0 ? seconds * 1000 : 0;
+        const sec = maxTime - Math.floor(Date.now() / 1000);
+        return sec > 0 ? sec * 1000 : 0;
     };
 
-
     async claim() {
-        const isCaptainActive = uw.GameDataPremium.isAdvisorActivated('captain');
-
-        // If the captain is active, claim all the resources at once and fake the opening
-        if (isCaptainActive) {
-            console.log('Claiming resources all at once');
-
+        const isCaptain = uw.GameDataPremium.isAdvisorActivated('captain');
+        if (isCaptain) {
             await this.fakeOpening();
             await this.sleep(Math.random() * 2000 + 1000);
             await this.fakeSelectAll();
             await this.sleep(Math.random() * 2000 + 1000);
 
-            if (this.duration == 1) await this.claimMultiple(300, 600);
-            if (this.duration == 2) await this.claimMultiple(1200, 2400);
+            const base = this._base || 300;
+            const boost = this._boost || 600;
+            await this.claimMultiple(base, boost);
             await this.fakeUpdate();
-
             setTimeout(() => uw.WMap.removeFarmTownLootCooldownIconAndRefreshLootTimers(), 2000);
-            return;
         }
-
-        console.log('Claiming resources one by one');
-
-        // If the captain is not active, claim the resources one by one, but limit the number of claims
-        // let max = 60;
-        // const { models: player_relation_models } = uw.MM.getOnlyCollectionByName('FarmTownPlayerRelation');
-        // const { models: farm_town_models } = uw.MM.getOnlyCollectionByName('FarmTown');
-        // const now = Math.floor(Date.now() / 1000);
-        // for (let town_id of polis_list) {
-        //     let town = uw.ITowns.towns[town_id];
-        //     let x = town.getIslandCoordinateX();
-        //     let y = town.getIslandCoordinateY();
-        //     for (let farm_town of farm_town_models) {
-        //         if (farm_town.attributes.island_x != x) continue;
-        //         if (farm_town.attributes.island_y != y) continue;
-        //         for (let relation of player_relation_models) {
-        //             if (farm_town.attributes.id != relation.attributes.farm_town_id) continue;
-        //             if (relation.attributes.relation_status !== 1) continue;
-        //             if (relation.attributes.lootable_at !== null && now < relation.attributes.lootable_at) continue;
-        //             this.claimSingle(town_id, relation.attributes.farm_town_id, relation.id, Math.ceil(this.timing / 600_000));
-        //             await this.sleep(500);
-        //             if (!max) return;
-        //             else max -= 1;
-        //         }
-        //     }
-        // }
-
     }
 
-    /* Claim resources from a single polis */
-    claimSingle = (town_id, farm_town_id, relation_id, option = 1) => {
-        const data = {
-            model_url: `FarmTownPlayerRelation/${relation_id}`,
-            action_name: 'claim',
-            arguments: {
-                farm_town_id: farm_town_id,
-                type: 'resources',
-                option: option,
-            },
-            town_id: town_id,
-        };
-        uw.gpAjax.ajaxPost('frontend_bridge', 'execute', data);
-    };
-
-    /* Claim resources from multiple polis */
-    claimMultiple = (base = 300, boost = 600) =>
-        new Promise((myResolve, myReject) => {
-            const polis_list = this.generateList();
-            let data = {
-                towns: polis_list,
+    claimMultiple = (base, boost) =>
+        new Promise(resolve => {
+            uw.gpAjax.ajaxPost('farm_town_overviews', 'claim_loads_multiple', {
+                towns: this.generateList(),
                 time_option_base: base,
                 time_option_booty: boost,
                 claim_factor: 'normal',
-            };
-            uw.gpAjax.ajaxPost('farm_town_overviews', 'claim_loads_multiple', data, false, () => myResolve());
+            }, false, () => resolve());
         });
 
-    /* Pretend that the window it's opening */
     fakeOpening = () =>
-        new Promise((myResolve, myReject) => {
+        new Promise(resolve => {
             uw.gpAjax.ajaxGet('farm_town_overviews', 'index', {}, false, async () => {
                 await this.sleep(10);
                 await this.fakeUpdate();
-                myResolve();
+                resolve();
             });
         });
 
-    /* Fake the user selecting the list */
     fakeSelectAll = () =>
-        new Promise((myResolve, myReject) => {
-            const data = {
-                town_ids: this.polis_list,
-            };
-            uw.gpAjax.ajaxGet('farm_town_overviews', 'get_farm_towns_from_multiple_towns', data, false, () => myResolve());
+        new Promise(resolve => {
+            uw.gpAjax.ajaxGet('farm_town_overviews', 'get_farm_towns_from_multiple_towns', { town_ids: this.polis_list }, false, () => resolve());
         });
 
-    /* Fake the window update*/
     fakeUpdate = () =>
-        new Promise((myResolve, myReject) => {
+        new Promise(resolve => {
             const town = uw.ITowns.getCurrentTown();
-            const { attributes: booty } = town.getResearches();
-            const { attributes: trade_office } = town.getBuildings();
-            const data = {
+            const booty = town.getResearches?.().attributes?.booty ? 1 : 0;
+            const trade = town.getBuildings?.().attributes?.trade_office ? 1 : 0;
+            uw.gpAjax.ajaxGet('farm_town_overviews', 'get_farm_towns_for_town', {
                 island_x: town.getIslandCoordinateX(),
                 island_y: town.getIslandCoordinateY(),
                 current_town_id: town.id,
-                booty_researched: booty ? 1 : 0,
+                booty_researched: booty,
                 diplomacy_researched: '',
-                trade_office: trade_office ? 1 : 0,
-            };
-            uw.gpAjax.ajaxGet('farm_town_overviews', 'get_farm_towns_for_town', data, false, () => myResolve());
+                trade_office: trade,
+            }, false, () => resolve());
         });
+}
 
-}   
 
 // Module: autoGratis.js
 class AutoGratis extends ModernUtils {

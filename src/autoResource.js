@@ -16,8 +16,8 @@ class AutoResource extends ModernUtil {
 
     start = () => {
         if (this.interval) clearInterval(this.interval);
-        this.main(); // Run immediately
-        this.interval = setInterval(this.main.bind(this), 30000);
+        this.main();
+        this.interval = setInterval(this.main.bind(this), 5000);
     };
 
     stop = () => {
@@ -195,7 +195,7 @@ class AutoResource extends ModernUtil {
         const hasNeed = need[0] + need[1] + need[2] > 0;
         if (!hasNeed) { this.updateInfo('Storage full'); return; }
 
-        let sent = false;
+        let sent = 0;
         for (const [cityId, city] of Object.entries(uw.ITowns.towns || {})) {
             if (cityId == this.targetTown) continue;
             if (city.getAvailableTradeCapacity() < 500) continue;
@@ -238,15 +238,14 @@ class AutoResource extends ModernUtil {
 
             uw.gpAjax.ajaxPost('town_info', 'trade', data, false, () => {});
             this.console.log(`${cityId} → ${this.targetTown}: ${send.wood}w ${send.stone}s ${send.iron}i`);
-            sent = true;
-            await this.sleep(500);
-            break;
+            sent++;
+            await this.sleep(300);
         }
 
         const needMsg = need[0] > 0 || need[1] > 0 || need[2] > 0
             ? `Need: ${need[0]}w/${need[1]}s/${need[2]}i`
             : '';
-        this.updateInfo(sent ? `Sent to ${target.getName()}` : `No spare resources. ${needMsg}`);
+        this.updateInfo(sent > 0 ? `${sent} villes → ${target.getName()}` : `No spares. ${needMsg}`);
     };
 
     updateInfo = msg => {

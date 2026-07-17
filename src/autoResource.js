@@ -112,6 +112,8 @@ class AutoResource extends ModernUtil {
     editReserve = (type, delta) => {
         this.reserve[type] = Math.max(0, this.reserve[type] + delta);
         this.storage.save('ar_reserve', this.reserve);
+        const el = document.getElementById(`ar_${type}_res`);
+        if (el) el.textContent = this.reserve[type];
     };
 
     main = async () => {

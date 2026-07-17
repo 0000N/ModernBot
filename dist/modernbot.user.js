@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         ModernBot V2
-// @version      1.22.7
+// @version      1.22.8
 // @description  ModernBot V2 — Grepolis automation bot (OpenCode AI managed)
 // @match        http://*.grepolis.com/game/*
 // @match        https://*.grepolis.com/game/*
@@ -463,7 +463,9 @@ class createGrepoWindow {
                  #${this.id} {top: -36px; right: 95px;}
                  #${this.id} .submenu_link {color: #000;}
                  #${this.id} .submenu_link:hover {text-decoration: none;}
-                 #${this.id} li { float:left; min-width: 60px; }
+                 #${this.id} { display: flex; flex-wrap: wrap; }
+                 #${this.id} li { float: none; min-width: 56px; }
+                 #${this.id}_content { clear: both; padding-top: 6px; }
                  </style>
                 `,
             ).appendTo('head');

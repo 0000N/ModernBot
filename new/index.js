@@ -29,68 +29,22 @@ class ModernBot {
         this.autoBuild = new AutoBuild();
         this.antiRage = new AntiRage();
 
-        new ModernMenu([
-            {
-                title: 'Farm',
-                id: 'farm',
-                render: () => this.autoFarm.render(),
-            },
-            {
-                title: 'Units',
-                id: 'unit_builder',
-                render: () => this.autoUnitBuilder.render(),
-            },
-            {
-                title: 'Gratis',
-                id: 'gratis',
-                render: () => this.autoGratis.render(),
-            },
-            {
-                title: 'Rural Trade',
-                id: 'rural_trade',
-                render: () => this.autoRuralTrade.render(),
-            },
-            {
-                title: 'Trade',
-                id: 'trade',
-                render: () => this.autoTrade.render(),
-            },
-            {
-                title: 'Bootcamp',
-                id: 'bootcamp',
-                render: () => this.autoBootcamp.render(),
-            },
-            {
-                title: 'Hide',
-                id: 'hide',
-                render: () => this.autoHide.render(),
-            },
-            {
-                title: 'Rural Lvl',
-                id: 'rural_level',
-                render: () => this.autoRuralLevel.render(),
-            },
-            {
-                title: 'Party',
-                id: 'party',
-                render: () => this.autoParty.render(),
-            },
-            {
-                title: 'Build',
-                id: 'build',
-                render: () => this.autoBuild.render(),
-            },
-            {
-                title: 'Train',
-                id: 'train',
-                render: () => this.autoTrain.render(),
-            },
-            {
-                title: 'Anti Rage',
-                id: 'anti_rage',
-                render: () => this.antiRage.render(),
-            },
-        ]);
+        this._tabs = [
+            { title: 'Farm', id: 'farm', render: () => this.autoFarm.render() },
+            { title: 'Units', id: 'unit_builder', render: () => this.autoUnitBuilder.render() },
+            { title: 'Gratis', id: 'gratis', render: () => this.autoGratis.render() },
+            { title: 'Rural Trade', id: 'rural_trade', render: () => this.autoRuralTrade.render() },
+            { title: 'Trade', id: 'trade', render: () => this.autoTrade.render() },
+            { title: 'Bootcamp', id: 'bootcamp', render: () => this.autoBootcamp.render() },
+            { title: 'Hide', id: 'hide', render: () => this.autoHide.render() },
+            { title: 'Rural Lvl', id: 'rural_level', render: () => this.autoRuralLevel.render() },
+            { title: 'Party', id: 'party', render: () => this.autoParty.render() },
+            { title: 'Build', id: 'build', render: () => this.autoBuild.render() },
+            { title: 'Train', id: 'train', render: () => this.autoTrain.render() },
+            { title: 'Anti Rage', id: 'anti_rage', render: () => this.antiRage.render() },
+        ];
+
+        this._menu = new ModernMenu(this._tabs);
 
 
     }
@@ -104,6 +58,16 @@ class ModernBot {
         $(document).on('keydown', (e) => {
             this.lastInteraction = Date.now();
             $("#modern_settings").removeClass("rotate-forever")
+        });
+
+        // Refresh active tab on town switch
+        GameApi.onTownSwitch(() => {
+            const active = $('#MODERN_BOT .active')[0];
+            if (!active) return;
+            const tab = this._tabs.find(t => t.id === active.id);
+            if (tab) {
+                $('#MODERN_BOT_content').html(tab.render());
+            }
         });
     }
 

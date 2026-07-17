@@ -61,7 +61,7 @@ class AutoBuild extends ModernUtils {
                 const cur = bld[name] || 0;
                 const tgt = target[name] || 0;
                 const diff = tgt - cur;
-                const color = diff > 0 ? '#ff8' : diff < 0 ? '#f88' : '#8f8';
+                const color = diff > 0 ? '#ffbb33' : diff < 0 ? '#ee5555' : '#fff';
 
                 const $row = $('<div>').css({ display: 'flex', alignItems: 'center', margin: '1px 0', fontSize: '11px' });
 

@@ -3,7 +3,7 @@ class AutoFarm extends ModernUtils {
         super();
 
         this.active = this.loadSettings('farm_active', false);
-        this.duration = this.loadSettings('farm_duration', 5);
+        this.duration = this.loadSettings('farm_duration', 1);
     }
 
     render() {
@@ -17,9 +17,9 @@ class AutoFarm extends ModernUtils {
         this.$buttonBox = $('<div>').css({ "padding": "5px" })
         this.$container.append(this.$buttonBox);
 
-        this.$button1 = this.getButtonElement("5 / 10 min")
+        this.$button1 = this.getButtonElement("5 min")
         this.$button1.click(() => this.setDuration(1));
-        this.$button2 = this.getButtonElement("20 / 40 min")
+        this.$button2 = this.getButtonElement("20 min")
         this.$button2.click(() => this.setDuration(2));
 
         this.setDuration(this.duration);
@@ -60,27 +60,22 @@ class AutoFarm extends ModernUtils {
 
     // TODO: Ensure that this list has the right sorting
     generateList = () => {
-        const islands_list = new Set();
-        const polis_list = [];
-        let minResource = 0;
-        let min_percent = 0;
-
+        const islands = {};  // island_id -> { town_id, min_percent }
         const { models: towns } = uw.MM.getOnlyCollectionByName('Town');
 
         for (const town of towns) {
             const { on_small_island, island_id, id } = town.attributes;
-            if (on_small_island || islands_list.has(island_id)) continue;
+            if (on_small_island) continue;
 
-            // Check the min percent for each town
             const { wood, stone, iron, storage } = uw.ITowns.getTown(id).resources();
-            minResource = Math.min(wood, stone, iron);
-            min_percent = minResource / storage;
+            const minPercent = Math.min(wood, stone, iron) / storage;
 
-            islands_list.add(island_id);
-            polis_list.push(town.id);
+            if (!islands[island_id] || minPercent < islands[island_id].minPercent) {
+                islands[island_id] = { townId: id, minPercent };
+            }
         }
 
-        return polis_list;
+        return Object.values(islands).map(i => i.townId);
     };
 
 
@@ -198,7 +193,7 @@ class AutoFarm extends ModernUtils {
     fakeSelectAll = () =>
         new Promise((myResolve, myReject) => {
             const data = {
-                town_ids: this.polislist,
+                town_ids: this.polis_list,
             };
             uw.gpAjax.ajaxGet('farm_town_overviews', 'get_farm_towns_from_multiple_towns', data, false, () => myResolve());
         });

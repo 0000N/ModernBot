@@ -28,14 +28,14 @@ If you don't have it yet: [Install Tampermonkey](https://www.tampermonkey.net/)
 ### 2. Click to install ModernBot
 
 <p align="center">
-  <a href="https://raw.githubusercontent.com/0000N/ModernBot/main/dist/merged.user.js">
+  <a href="https://raw.githubusercontent.com/0000N/ModernBot/main/dist/modernbot.user.js">
     <img src="https://img.shields.io/badge/Install%20ModernBot-v1.22-brightgreen?style=for-the-badge&logo=tampermonkey" alt="Install ModernBot">
   </a>
 </p>
 
 **Or copy this URL into your browser:**
 ```
-https://raw.githubusercontent.com/0000N/ModernBot/main/dist/merged.user.js
+https://raw.githubusercontent.com/0000N/ModernBot/main/dist/modernbot.user.js
 ```
 
 Tampermonkey will automatically detect the script and ask you to install it.

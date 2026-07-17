@@ -21,7 +21,7 @@
 
 ## Установка
 
-### <div align="center"> [Версия 1.0 (src)](https://github.com/0000N/ModernBot/raw/main/dist/merged.user.js) </div>
+### <div align="center"> [Версия 1.0 (src)](https://github.com/0000N/ModernBot/raw/main/dist/modernbot.user.js) </div>
 
 Версия 2.0 в разработке — [Отслеживать прогресс](https://github.com/0000N/ModernBot/issues)
 

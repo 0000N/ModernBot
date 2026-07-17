@@ -1,13 +1,13 @@
 // ==UserScript==
-// @name         ModernBot
-// @version      1.0.0
-// @description  A modern grepolis bot
+// @name         ModernBot V2
+// @version      1.22.6
+// @description  ModernBot V2 — Grepolis automation bot (OpenCode AI managed)
 // @match        http://*.grepolis.com/game/*
 // @match        https://*.grepolis.com/game/*
-// @updateURL    https://github.com/0000N/ModernBot/blob/main/dist/merged.user.js
-// @downloadURL  https://github.com/0000N/ModernBot/blob/main/dist/merged.user.js
+// @updateURL    https://raw.githubusercontent.com/0000N/ModernBot/main/dist/modernbot.user.js
+// @downloadURL  https://raw.githubusercontent.com/0000N/ModernBot/main/dist/modernbot.user.js
 // @icon         https://raw.githubusercontent.com/0000N/ModernBot/main/img/gear.png
-// @require      http://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js
+// @require      https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js
 // ==/UserScript==
 
 (function () {

@@ -23,7 +23,7 @@
 
 ## التثبيت
 
-### <div align="center"> [الإصدار 1.0 (src)](https://github.com/0000N/ModernBot/raw/main/dist/merged.user.js) </div>
+### <div align="center"> [الإصدار 1.0 (src)](https://github.com/0000N/ModernBot/raw/main/dist/modernbot.user.js) </div>
 
 الإصدار 2.0 قيد التطوير — [متابعة التقدم](https://github.com/0000N/ModernBot/issues)
 

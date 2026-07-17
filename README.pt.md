@@ -21,7 +21,7 @@ Um fork de [Sau1707/ModernBot](https://github.com/Sau1707/ModernBot), mantido po
 
 ## Instalação
 
-### <div align="center"> [Versão 1.0 (src)](https://github.com/0000N/ModernBot/raw/main/dist/merged.user.js) </div>
+### <div align="center"> [Versão 1.0 (src)](https://github.com/0000N/ModernBot/raw/main/dist/modernbot.user.js) </div>
 
 Versão 2.0 em andamento — [Acompanhar progresso](https://github.com/0000N/ModernBot/issues)
 

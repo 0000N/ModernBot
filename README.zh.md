@@ -21,7 +21,7 @@
 
 ## 安装
 
-### <div align="center"> [版本 1.0 (src)](https://github.com/0000N/ModernBot/raw/main/dist/merged.user.js) </div>
+### <div align="center"> [版本 1.0 (src)](https://github.com/0000N/ModernBot/raw/main/dist/modernbot.user.js) </div>
 
 版本 2.0 开发中 — [跟踪进度](https://github.com/0000N/ModernBot/issues)
 

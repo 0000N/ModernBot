@@ -13,19 +13,23 @@ const stylePath = path.join(__dirname, 'new/style.css');
 
 // Function to get the new version number
 function getNextVersion() {
-    let version = '0.0.1';
-
-    // Check if the dist file already exists to retrieve the current version
+    // Read version from version.txt if available
+    const verFile = path.join(__dirname, 'version.txt');
+    if (fs.existsSync(verFile)) {
+        const current = fs.readFileSync(verFile, 'utf-8').trim();
+        const [major, minor, patch] = current.split('.').map(Number);
+        return `${major}.${minor}.${patch + 1}`;
+    }
+    // Fallback: read from dist
     if (fs.existsSync(distPath)) {
         const content = fs.readFileSync(distPath, 'utf-8');
-        const versionMatch = content.match(/@version\s+(\d+\.\d+\.\d+)/);
-        if (versionMatch) {
-            const [major, minor, patch] = versionMatch[1].split('.').map(Number);
-            version = `${major}.${minor}.${patch + 1}`; // Increment patch version by 1
+        const m = content.match(/@version\s+(\d+\.\d+\.\d+)/);
+        if (m) {
+            const [major, minor, patch] = m[1].split('.').map(Number);
+            return `${major}.${minor}.${patch + 1}`;
         }
     }
-
-    return version;
+    return '1.0.0';
 }
 
 // Determine if the version should be updated based on the command-line argument
@@ -34,15 +38,15 @@ const version = shouldUpdateVersion ? getNextVersion() : '1.0.0'; // Default ver
 
 // Header template with conditional version
 const header = `// ==UserScript==
-// @name         ModernBot
+// @name         ModernBot V2
 // @version      ${version}
-// @description  A modern grepolis bot
+// @description  ModernBot V2 — Grepolis automation bot (OpenCode AI managed)
 // @match        http://*.grepolis.com/game/*
 // @match        https://*.grepolis.com/game/*
-// @updateURL    https://github.com/0000N/ModernBot/blob/main/dist/merged.user.js
-// @downloadURL  https://github.com/0000N/ModernBot/blob/main/dist/merged.user.js
+// @updateURL    https://raw.githubusercontent.com/0000N/ModernBot/main/dist/modernbot.user.js
+// @downloadURL  https://raw.githubusercontent.com/0000N/ModernBot/main/dist/modernbot.user.js
 // @icon         https://raw.githubusercontent.com/0000N/ModernBot/main/img/gear.png
-// @require      http://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js
+// @require      https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js
 // ==/UserScript==
 
 (function () {
